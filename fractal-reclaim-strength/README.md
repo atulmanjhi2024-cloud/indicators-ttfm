@@ -18,17 +18,21 @@ C1, C2, C3, and C4 are four consecutive chart bars. A bullish C2 trades below C1
 - **Reach C4:** percentage that held the C2 extreme throughout C3. This means survival into C4, not reaching a price target.
 - **Full C4:** percentage that held the C2 extreme throughout both C3 and C4.
 - **XC2:** percentage that breached the C2 extreme in C3 or C4. `Full C4 + XC2 = 100%`, apart from display rounding.
-- **Reach Δ:** bucket Reach C4 minus the whole sample's BASE Reach C4, in percentage points (`pp`). For example, 80% minus 60% is `+20 pp`.
+- **Δ Reach:** bucket Reach C4 minus the whole sample's Reach C4 (the **All** row), in percentage points (`pp`). For example, 80% minus 60% is `+20 pp`.
 
 A breach requires a strictly lower low (bullish) or higher high (bearish). Equality holds. RS buckets are `[0,10)`, `[10,25)`, `[25,50)`, `[50,75)`, `[75,100)`, and `[100,∞)`; a boundary value enters the higher bucket.
 
 ## Live behavior
 
-A setup is established only at C2 close. Its swept C1 level and C2 extreme are drawn through C4; a breach changes the extreme line's color intrabar. At C4 close the setup leaves LIVE status and its lines disappear, even if the next bar has not opened.
+A setup is established only at C2 close. Its swept C1 level (gray, dotted) and C2 extreme (blue bullish / red bearish) are drawn through C4, with `C2 · RS 42%` on the C2 candle and the extreme's price at the line's end. A breach turns the extreme line gray and dotted and its price reads `XC2`, intrabar. At C4 close the setup leaves LIVE status and its lines disappear, even if the next bar has not opened.
 
 Only the latest confirmed setup is drawn. Before replacing it with a new C2, the old setup's breach is checked and its state is recorded in the **Previous** row. `Replaced in C3 (unfinished)` describes its state at replacement, not its final outcome. Historical statistics independently measure every eligible setup at its own C4 close, including ones replaced on the live board. **Previous** is a replacement snapshot, not a trade log.
 
-The table has six columns and 12 rows: title, current status, column labels, six RS buckets, BASE, Previous, and chart sample scope. Size options are **Compact**, **Tiny**, and **Normal**. Rates and Reach Δ show a dash when N is zero.
+The table has six columns and 12 rows: title, latest setup (`● Bull · C3 · RS 42% · Sweep 18%`, `XC2 · Bull · broke in C3`, or `Waiting for C2`), column labels, six RS buckets (the live setup's bucket is tinted), **All**, Previous, and sample scope. Size options are **Compact**, **Tiny**, and **Normal**. Rates and Δ Reach show a dash when N is zero.
+
+## Look
+
+The same soft gray palette as Fractal Alignment: gray text with a hairline frame, blue / red only for direction and for Δ Reach above / below the whole sample. The Bullish and Bearish colors are settings. On a dark chart background the table and text switch to dark-theme tones automatically.
 
 ## Sample scope: chart data, not the offline research sample
 

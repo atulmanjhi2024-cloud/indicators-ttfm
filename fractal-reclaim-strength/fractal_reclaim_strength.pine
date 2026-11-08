@@ -2,27 +2,27 @@
 indicator("Fractal Reclaim Strength", overlay=true, max_lines_count=500, max_labels_count=500, max_bars_back=5000)
 
 // ==========================================
-// 1. INPUTS & SETTINGS (LEAN & MINIMAL)
-// Reference: notprofgreen "one setup" visual — two levels:
-// the swept C1 extreme + the must-hold C2 extreme. No entry/TP.
+// 1. INPUTS
+// The latest C2 setup as two levels (the swept C1 extreme and the
+// C2 extreme that must hold) plus a survival table by Reclaim Strength.
 // ==========================================
-grp_visual = "1. LEVELS"
-grp_table  = "2. STATS TABLE"
+grp_visual = "Levels"
+grp_table  = "Stats Table"
 
-// --- 1. LEVELS (C1 Swept + C2 Extreme) ---
-show_lines       = input.bool(true, "Level Lines (C1 & C2 Extreme)", group=grp_visual, tooltip="Draws the swept C1 extreme and the must-hold C2 extreme.")
-show_line_labels = input.bool(true, "Price Labels", group=grp_visual, tooltip="Shows the level price at the right end of the line.")
+show_lines       = input.bool(true, "Level Lines", group=grp_visual, tooltip="The swept C1 extreme (dotted gray) and the C2 extreme that must hold (direction color), drawn from C2 to the end of C4.")
+show_line_labels = input.bool(true, "Labels", group=grp_visual, tooltip="C2 with its Reclaim Strength on the C2 candle, and the C2 extreme price at the end of its line (XC2 once it breaks).")
+bull_col         = input.color(#2962ff, "Bullish", inline="clr", group=grp_visual)
+bear_col         = input.color(#f23645, "Bearish", inline="clr", group=grp_visual)
 
-// --- 2. STATS TABLE ---
-show_tbl    = input.bool(true, "Show Table", inline="tbl_view", group=grp_table, tooltip="Shows the latest setup and historical C2-extreme survival rates, not trade win rates. All completed setups enter the sample, including overlapping ones.")
+show_tbl    = input.bool(true, "Show Table", inline="tbl_view", group=grp_table, tooltip="The latest setup and the historical C2-extreme survival rates by Reclaim Strength (not trade win rates). Every completed setup is counted, overlapping ones included.")
 tbl_pos     = input.string("Top Right", "Position", options=["Top Right", "Bottom Right", "Top Left", "Bottom Left"], inline="tbl_view", group=grp_table)
 tbl_size_in = input.string("Compact", "Size", options=["Compact", "Tiny", "Normal"], inline="tbl_view", group=grp_table)
-bars_mode   = input.string("All Available Bars", "Sample", options=["All Available Bars", "Last 5000 Bars", "Last 1000 Bars", "Last 500 Bars"], group=grp_table, tooltip="Uses this chart's bars and feed, not the offline research sample. Last N Bars selects C2 among the latest N closed chart bars; only setups whose C4 has closed are counted. Updates on bar close. Session gaps and incomplete minute coverage are not filtered.")
+bars_mode   = input.string("All Available Bars", "Sample", options=["All Available Bars", "Last 5000 Bars", "Last 1000 Bars", "Last 500 Bars"], group=grp_table, tooltip="Uses this chart's bars and feed. Last N Bars counts C2s among the latest N closed bars whose C4 has closed. Updates on bar close. Session gaps are not filtered.")
 
 // ==========================================
-// 2. HELPERS & FUNCTIONS
+// 2. HELPERS
 // ==========================================
-// Timeframe gate (hard 15m rule: engine, drawings and table fully hidden below 15 minutes)
+// Engine, drawings and table are off below 15 minutes
 int tf_sec = timeframe.in_seconds()
 bool is_too_low = na(tf_sec) ? ((timeframe.isseconds) or (timeframe.isminutes and timeframe.multiplier < 15)) : (tf_sec < 900)
 
@@ -53,10 +53,10 @@ bin_label(int b) =>
         => "–"
 
 format_pct(float val) =>
-    na(val) ? "–" : str.tostring(val, "0.0") + "%"
+    na(val) ? "–" : str.tostring(val, "0") + "%"
 
 format_delta(float val) =>
-    na(val) ? "–" : (val > 0.0 ? "+" : "") + str.tostring(val, "0.0") + " pp"
+    na(val) ? "–" : (val > 0.0 ? "+" : "") + str.tostring(val, "0") + " pp"
 
 // ==========================================
 // 3. INCREMENTAL COUNTERS (6 BINS + BASE)
@@ -210,85 +210,81 @@ if barstate.isconfirmed and is_setup_now and not is_too_low
 bool is_setup_expired = not na(active_c2_bar) and (bar_index > active_c2_bar + 2 or (bar_index == active_c2_bar + 2 and barstate.isconfirmed))
 
 // ==========================================
-// 6. ACTIVE SETUP LINES (C1 Swept + C2 Extreme)
-// The two reference lines: swept level (gray dotted) and the
-// must-hold extreme (direction color, dashed). On breach the
-// extreme line turns red; no third line is ever drawn.
+// 6. PALETTE (light and dark chart backgrounds)
+// ==========================================
+bool  is_dark  = color.r(chart.bg_color) + color.g(chart.bg_color) + color.b(chart.bg_color) < 382
+color ink      = is_dark ? #d1d4dc : #2a2e39   // primary text
+color mid      = #787b86                       // secondary text, swept level
+color faint    = is_dark ? #5d606b : #b2b5be   // notes, empty values
+color frame    = is_dark ? #2a2e39 : #e0e3eb   // table frame and rules
+color tbl_bg   = is_dark ? #131722 : #ffffff
+color head_bg  = is_dark ? #1e222d : #f8f9fd
+
+// ==========================================
+// 7. ACTIVE SETUP DRAWINGS
+// Swept C1 extreme (gray, dotted) and the C2 extreme that must hold
+// (direction color). On a breach the extreme line turns gray and dotted
+// and its price reads XC2. Everything is removed at C4 close.
 // ==========================================
 var line  l_swept     = na
 var line  l_extreme   = na
 var label lbl_extreme = na
+var label lbl_c2      = na
 
-color bull_col = color.rgb(16, 185, 129)
-color bear_col = color.rgb(244, 63, 94)
-color fail_col = color.rgb(239, 68, 68)
+clear_drawings() =>
+    line.delete(l_swept)
+    line.delete(l_extreme)
+    label.delete(lbl_extreme)
+    label.delete(lbl_c2)
 
 if is_too_low or not show_lines
-    if not na(l_swept)
-        line.delete(l_swept)
-        l_swept := na
-    if not na(l_extreme)
-        line.delete(l_extreme)
-        l_extreme := na
-    if not na(lbl_extreme)
-        label.delete(lbl_extreme)
-        lbl_extreme := na
+    clear_drawings()
+    l_swept     := na
+    l_extreme   := na
+    lbl_extreme := na
+    lbl_c2      := na
 else if not na(active_c2_bar)
-    int end_bar = active_c2_bar + 2
-    color dir_col = active_dir == "Bull" ? bull_col : bear_col
+    int   end_bar = active_c2_bar + 2
+    bool  is_bull = active_dir == "Bull"
+    color dir_col = is_bull ? bull_col : bear_col
+    string px_txt = str.tostring(active_extreme, format.mintick)
 
-    // Fresh C2 close: rebuild lines from scratch
+    // Fresh C2 close: draw from scratch
     if barstate.isconfirmed and is_setup_now
-        if not na(l_swept)
-            line.delete(l_swept)
-        if not na(l_extreme)
-            line.delete(l_extreme)
-        if not na(lbl_extreme)
-            label.delete(lbl_extreme)
-        l_swept   := na
-        l_extreme := na
+        clear_drawings()
+        l_swept   := line.new(active_c2_bar - 1, active_swept, end_bar, active_swept, color=mid, style=line.style_dotted, width=1)
+        l_extreme := line.new(active_c2_bar, active_extreme, end_bar, active_extreme, color=dir_col, style=line.style_solid, width=2)
         lbl_extreme := na
-
-        l_swept := line.new(active_c2_bar - 1, active_swept, end_bar, active_swept,
-             color=color.rgb(148, 163, 184), style=line.style_dotted, width=1)
-        l_extreme := line.new(active_c2_bar, active_extreme, end_bar, active_extreme,
-             color=dir_col, style=line.style_dashed, width=2)
-
+        lbl_c2      := na
         if show_line_labels
-            lbl_extreme := label.new(end_bar, active_extreme,
-                 text="C2 Extreme: " + str.tostring(active_extreme, format.mintick),
-                 style=label.style_label_left,
-                 color=dir_col,
-                 textcolor=color.white,
-                 size=size.tiny)
+            lbl_c2 := label.new(active_c2_bar, active_extreme, "C2 · RS " + str.tostring(active_rs, "0") + "%",
+                 style=is_bull ? label.style_label_up : label.style_label_down, color=color(na), textcolor=ink, size=size.small)
+            lbl_extreme := label.new(end_bar, active_extreme, px_txt,
+                 style=label.style_label_left, color=color(na), textcolor=dir_col, size=size.small)
 
-    // Live C2 extreme breach: visual state
+    // Breach of the C2 extreme during C3 / C4
     if active_failed
-        if not na(l_extreme)
-            line.set_color(l_extreme, fail_col)
-        if not na(lbl_extreme)
-            label.set_color(lbl_extreme, fail_col)
-            label.set_text(lbl_extreme, "C2 Extreme (Broken ✗): " + str.tostring(active_extreme, format.mintick))
+        line.set_color(l_extreme, mid)
+        line.set_style(l_extreme, line.style_dotted)
+        label.set_text(lbl_extreme, "XC2 " + px_txt)
+        label.set_textcolor(lbl_extreme, bear_col)
 
     if not show_line_labels
-        if not na(lbl_extreme)
-            label.delete(lbl_extreme)
-            lbl_extreme := na
+        label.delete(lbl_extreme)
+        label.delete(lbl_c2)
+        lbl_extreme := na
+        lbl_c2      := na
 
-    // Setup expiry (C4 close): wipe all lines
+    // C4 close: setup leaves LIVE status
     if is_setup_expired
-        if not na(l_swept)
-            line.delete(l_swept)
-        if not na(l_extreme)
-            line.delete(l_extreme)
-        if not na(lbl_extreme)
-            label.delete(lbl_extreme)
+        clear_drawings()
         l_swept     := na
         l_extreme   := na
         lbl_extreme := na
+        lbl_c2      := na
 
 // ==========================================
-// 7. COMPACT STATS + ACTIVE SETUP TABLE
+// 8. STATS TABLE
 // ==========================================
 var string table_pos_id = switch tbl_pos
     "Bottom Right" => position.bottom_right
@@ -303,117 +299,98 @@ var string table_sz = switch tbl_size_in
 
 var table t = na
 
+cell(int col, int row, string txt, color tc, color bg, bool bold = false, string tip = "") =>
+    table.cell(t, col, row, txt, bgcolor=bg, text_color=tc, text_size=table_sz, text_font_family=font.family_default,
+         text_formatting=bold ? text.format_bold : text.format_none, tooltip=tip)
+
 if barstate.islast
-    if is_too_low
+    if is_too_low or not show_tbl
         if not na(t)
             table.delete(t)
             t := na
-    else if show_tbl
+    else
         if na(t)
-            t := table.new(table_pos_id, 6, 12, bgcolor=color.rgb(15, 23, 42), border_color=color.rgb(51, 65, 85), border_width=1)
+            t := table.new(table_pos_id, 6, 12, bgcolor=tbl_bg, frame_color=frame, frame_width=1, border_color=tbl_bg, border_width=0)
             // Merge once per table object; realtime updates only change cell data.
             table.merge_cells(t, 0, 0, 5, 0)
             table.merge_cells(t, 0, 1, 5, 1)
             table.merge_cells(t, 0, 10, 5, 10)
             table.merge_cells(t, 0, 11, 5, 11)
 
-        float taban_full_pct    = total_n > 0 ? (total_full * 100.0 / total_n) : na
-        float taban_reaches_pct = total_n > 0 ? (total_reaches * 100.0 / total_n) : na
-        float taban_xc2_pct     = total_n > 0 ? (total_xc2 * 100.0 / total_n) : na
+        float base_full_pct    = total_n > 0 ? (total_full * 100.0 / total_n) : na
+        float base_reaches_pct = total_n > 0 ? (total_reaches * 100.0 / total_n) : na
+        float base_xc2_pct     = total_n > 0 ? (total_xc2 * 100.0 / total_n) : na
 
-        // Row 0: Main Title
+        // Row 0: title
         string tf_str = switch
             timeframe.isseconds       => timeframe.period + "s"
-            timeframe.period == "60"  => "1h"
-            timeframe.period == "240" => "4h"
+            timeframe.period == "60"  => "1H"
+            timeframe.period == "240" => "4H"
             timeframe.isminutes       => timeframe.period + "m"
-            timeframe.isdaily         => "Daily"
-            timeframe.isweekly        => "Weekly"
-            timeframe.ismonthly       => "Monthly"
+            timeframe.isdaily         => "D"
+            timeframe.isweekly        => "W"
+            timeframe.ismonthly       => "M"
             => timeframe.period
+        cell(0, 0, "Reclaim Strength · " + syminfo.ticker + " · " + tf_str, ink, head_bg, true)
 
-        string header_txt = "Fractal Reclaim Strength (" + syminfo.ticker + " · " + tf_str + ")"
-        table.cell(t, 0, 0, header_txt, bgcolor=color.rgb(24, 29, 43), text_color=color.rgb(248, 250, 252), text_size=table_sz)
-
-        // Row 1: Active Setup Status Board (compact single line)
+        // Row 1: latest setup
         bool is_live = not na(active_c2_bar) and not is_setup_expired
         string phase_txt = ""
         if is_live
             int bars_since = bar_index - active_c2_bar
             phase_txt := bars_since == 0 ? "C2" : (bars_since == 1 ? "C3" : "C4")
-
-        string active_banner = ""
-        color  active_bg     = color.rgb(30, 41, 59)
-
+        color  dir_col = active_dir == "Bull" ? bull_col : bear_col
+        string status  = ""
+        color  st_col  = mid
         if is_live
             if active_failed
                 string fail_phase = not na(active_failed_bar) ? (active_failed_bar - active_c2_bar == 1 ? "C3" : "C4") : phase_txt
-                active_banner := "INVALIDATED: " + active_dir + " (" + fail_phase + ") · C2 Extreme Broken"
-                active_bg     := color.rgb(71, 85, 105)
+                status := "XC2 · " + active_dir + " · broke in " + fail_phase
+                st_col := bear_col
             else
-                active_banner := "LIVE: " + active_dir + " (" + phase_txt + ") · RS: " + str.tostring(active_rs, "0.0") + "% · Sweep: " + str.tostring(active_wick, "0.0") + "%"
-                active_bg     := active_dir == "Bull" ? color.rgb(6, 78, 59) : color.rgb(136, 19, 55)
+                status := "● " + active_dir + " · " + phase_txt + " · RS " + str.tostring(active_rs, "0") + "% · Sweep " + str.tostring(active_wick, "0") + "%"
+                st_col := dir_col
         else
-            active_banner := "STANDBY" + (active_dir != "" ? " (Last: " + active_dir + (active_failed ? " · Invalidated)" : " · Full C4 held)") : "")
-            active_bg := color.rgb(30, 41, 59)
+            status := "Waiting for C2" + (active_dir != "" ? " · last " + active_dir + (active_failed ? ", XC2" : ", held") : "")
+        cell(0, 1, status, st_col, tbl_bg, is_live)
 
-        table.cell(t, 0, 1, active_banner, bgcolor=active_bg, text_color=color.rgb(248, 250, 252), text_size=table_sz)
+        // Row 2: column headers
+        cell(0, 2, "RS", mid, head_bg)
+        cell(1, 2, "N", mid, head_bg)
+        cell(2, 2, "Reach C4", mid, head_bg, false, "Held the C2 extreme through C3.")
+        cell(3, 2, "Full C4", mid, head_bg, false, "Held the C2 extreme through C3 and C4.")
+        cell(4, 2, "XC2", mid, head_bg, false, "Broke the C2 extreme in C3 or C4.")
+        cell(5, 2, "Δ Reach", mid, head_bg, false, "Bucket Reach C4 minus the whole sample's Reach C4, in percentage points (pp).")
 
-        // Row 2: Column Headers (compact)
-        table.cell(t, 0, 2, "RS", bgcolor=color.rgb(30, 41, 59), text_color=color.rgb(203, 213, 225), text_size=table_sz)
-        table.cell(t, 1, 2, "N", bgcolor=color.rgb(30, 41, 59), text_color=color.rgb(203, 213, 225), text_size=table_sz)
-        table.cell(t, 2, 2, "Reach C4", bgcolor=color.rgb(30, 41, 59), text_color=color.rgb(203, 213, 225), text_size=table_sz)
-        table.cell(t, 3, 2, "Full C4", bgcolor=color.rgb(30, 41, 59), text_color=color.rgb(203, 213, 225), text_size=table_sz)
-        table.cell(t, 4, 2, "XC2", bgcolor=color.rgb(30, 41, 59), text_color=color.rgb(203, 213, 225), text_size=table_sz)
-        table.cell(t, 5, 2, "Reach Δ", bgcolor=color.rgb(30, 41, 59), text_color=color.rgb(203, 213, 225), text_size=table_sz, tooltip="Bucket Reach C4 minus BASE Reach C4, in percentage points (pp).")
-
-        // Rows 3..8: 6 RS bins
+        // Rows 3..8: RS buckets; the live setup's bucket is tinted
         for b = 0 to 5
-            int row_idx = 3 + b
-            int cnt = array.get(bin_n, b)
+            int   row = 3 + b
+            int   cnt = array.get(bin_n, b)
             float r_pct = cnt > 0 ? (array.get(bin_reaches, b) * 100.0 / cnt) : na
             float f_pct = cnt > 0 ? (array.get(bin_full, b) * 100.0 / cnt) : na
             float x_pct = cnt > 0 ? (array.get(bin_xc2, b) * 100.0 / cnt) : na
-            float delta = (cnt > 0 and not na(taban_reaches_pct)) ? (r_pct - taban_reaches_pct) : na
+            float delta = (cnt > 0 and not na(base_reaches_pct)) ? (r_pct - base_reaches_pct) : na
+            bool  hot   = is_live and active_bin == b
+            color bg    = hot ? color.new(dir_col, 88) : tbl_bg
+            color num   = cnt > 0 ? ink : faint
+            cell(0, row, bin_label(b), hot ? dir_col : ink, bg, hot)
+            cell(1, row, str.tostring(cnt), num, bg)
+            cell(2, row, format_pct(r_pct), num, bg)
+            cell(3, row, format_pct(f_pct), num, bg)
+            cell(4, row, format_pct(x_pct), num, bg)
+            color d_col = na(delta) ? faint : delta > 0.0 ? bull_col : delta < 0.0 ? bear_col : mid
+            cell(5, row, format_delta(delta), d_col, bg)
 
-            bool is_active_bucket = is_live and (active_bin == b)
-            color row_bg = is_active_bucket ? color.rgb(30, 58, 95) : color.rgb(15, 23, 42)
+        // Row 9: whole sample
+        cell(0, 9, "All", ink, head_bg, true)
+        cell(1, 9, str.tostring(total_n), ink, head_bg, true)
+        cell(2, 9, format_pct(base_reaches_pct), ink, head_bg, true)
+        cell(3, 9, format_pct(base_full_pct), ink, head_bg, true)
+        cell(4, 9, format_pct(base_xc2_pct), ink, head_bg, true)
+        cell(5, 9, "ref", faint, head_bg)
 
-            color lbl_col = b == 0 ? color.rgb(248, 113, 113) :
-                 b == 1 ? color.rgb(251, 146, 60) :
-                 b == 2 ? color.rgb(250, 204, 21) :
-                 b == 3 ? color.rgb(52, 211, 153) :
-                 b == 4 ? color.rgb(16, 185, 129) :
-                          color.rgb(5, 150, 105)
-
-            table.cell(t, 0, row_idx, bin_label(b), bgcolor=row_bg, text_color=lbl_col, text_size=table_sz)
-            table.cell(t, 1, row_idx, str.tostring(cnt), bgcolor=row_bg, text_color=color.rgb(226, 232, 240), text_size=table_sz)
-            table.cell(t, 2, row_idx, format_pct(r_pct), bgcolor=row_bg, text_color=color.rgb(226, 232, 240), text_size=table_sz)
-            table.cell(t, 3, row_idx, format_pct(f_pct), bgcolor=row_bg, text_color=color.rgb(226, 232, 240), text_size=table_sz)
-            table.cell(t, 4, row_idx, format_pct(x_pct), bgcolor=row_bg, text_color=color.rgb(248, 250, 252), text_size=table_sz)
-
-            color delta_col = not na(delta) and delta > 0.0 ? color.rgb(52, 211, 153) :
-                 not na(delta) and delta < 0.0 ? color.rgb(248, 113, 113) :
-                 color.rgb(148, 163, 184)
-
-            table.cell(t, 5, row_idx, format_delta(delta), bgcolor=row_bg, text_color=delta_col, text_size=table_sz)
-
-        // Row 9: BASE (sample summary)
-        table.cell(t, 0, 9, "BASE", bgcolor=color.rgb(24, 29, 43), text_color=color.rgb(248, 250, 252), text_size=table_sz)
-        table.cell(t, 1, 9, str.tostring(total_n), bgcolor=color.rgb(24, 29, 43), text_color=color.rgb(248, 250, 252), text_size=table_sz)
-        table.cell(t, 2, 9, format_pct(taban_reaches_pct), bgcolor=color.rgb(24, 29, 43), text_color=color.rgb(248, 250, 252), text_size=table_sz)
-        table.cell(t, 3, 9, format_pct(taban_full_pct), bgcolor=color.rgb(24, 29, 43), text_color=color.rgb(248, 250, 252), text_size=table_sz)
-        table.cell(t, 4, 9, format_pct(taban_xc2_pct), bgcolor=color.rgb(24, 29, 43), text_color=color.rgb(248, 250, 252), text_size=table_sz)
-        table.cell(t, 5, 9, "Ref", bgcolor=color.rgb(24, 29, 43), text_color=color.rgb(148, 163, 184), text_size=table_sz)
-
-        table.cell(t, 0, 10, previous_setup == "" ? "Latest setup shown · All completed setups counted" : previous_setup,
-             bgcolor=color.rgb(24, 29, 43), text_color=color.rgb(203, 213, 225), text_size=table_sz,
-             tooltip="Only the latest C2 is drawn. Previous records its state when replaced; an unfinished setup is still measured independently at its C4 close.")
-        string sample_txt = is_windowed ? "Last " + str.tostring(max_lookback) + " closed bars" : "All loaded closed bars"
-        table.cell(t, 0, 11, "Chart sample · " + sample_txt,
-             bgcolor=color.rgb(24, 29, 43), text_color=color.rgb(148, 163, 184), text_size=table_sz,
-             tooltip="This feed and chart timeframe. No offline minute-completeness filter. Rates measure extreme survival, not trade profitability. Small N is less informative.")
-    else
-        if not na(t)
-            table.delete(t)
-            t := na
+        // Rows 10..11: previous setup and sample
+        cell(0, 10, previous_setup == "" ? "Only the latest setup is drawn" : previous_setup, mid, tbl_bg, false,
+             "Only the latest C2 is drawn. Previous is its state when a new C2 replaced it; every setup is still measured on its own at its C4 close.")
+        cell(0, 11, "Sample: " + (is_windowed ? "last " + str.tostring(max_lookback) + " closed bars" : "all loaded bars"), faint, tbl_bg, false,
+             "This chart's feed and timeframe. Rates measure whether the C2 extreme survived, not trade profitability. Small N says little.")
