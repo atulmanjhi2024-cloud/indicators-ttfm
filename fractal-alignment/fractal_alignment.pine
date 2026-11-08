@@ -815,9 +815,9 @@ method draw(HtfCandle c, int midX, string tf) =>
 
 newHtfCandle() =>
     HtfCandle.new(open, high, low, close, bar_index, bar_index,
-         box.new(bar_index, high, bar_index, low, border_color = borderBull, border_width = 1),
-         line.new(bar_index, high, bar_index, high, color = wickBull),
-         line.new(bar_index, low, bar_index, low, color = wickBull),
+         box.new(bar_index, high, bar_index, low, border_color = noColor, border_width = 1, bgcolor = noColor),
+         line.new(bar_index, high, bar_index, high, color = noColor),
+         line.new(bar_index, low, bar_index, low, color = noColor),
          line.new(bar_index, high, bar_index, high, color = noColor),
          na, openTime = time)
 
@@ -1004,7 +1004,7 @@ icPoiStart(C2Setup s, int swIdx) =>
 
 icInFvg(C2Setup s, float swPx, int swIdx) =>
     bool hit   = false
-    int  first = icPoiStart(s, swIdx) + 2
+    int  first = math.max(icPoiStart(s, swIdx) + 2, bar_index - 1497)
     if first < swIdx
         for b = swIdx - 1 to first
             int off = bar_index - b
@@ -1015,7 +1015,7 @@ icInFvg(C2Setup s, float swPx, int swIdx) =>
 
 icSweepsSwing(C2Setup s, float swPx, int swIdx) =>
     bool  hit   = false
-    int   first = math.max(icPoiStart(s, swIdx), 1)
+    int   first = math.max(icPoiStart(s, swIdx), 1, bar_index - 1497)
     // extreme of the candles between a candidate swing and our swing: an untaken swing is never beyond it
     float run   = na
     if swIdx - 2 >= first
@@ -1071,7 +1071,7 @@ icStep(C2Setup s, int m, bool live) =>
                         // ... unless it is the swing that made C4's own low / high so far (its wick)
                         if not c4Ok
                             bool isExt = true
-                            for kb = s.c4Start to swIdx
+                            for kb = math.min(math.max(s.c4Start, bar_index - 1499), swIdx) to swIdx
                                 int o2 = bar_index - kb
                                 if s.isBull ? low[o2] < swPx : high[o2] > swPx
                                     isExt := false
@@ -1209,6 +1209,8 @@ abLtfOf(simple string htf) =>
 // when C4 closes or a close goes beyond the C2 extreme (XC2). A newer model replaces an older one.
 // +1 bullish, -1 bearish, 0 none.
 abDir(simple string htf) =>
+    // reads open / close up to ~1500 bars back below; one fixed deep read sizes this context's buffers up front
+    float bufWarm = close[1499] + open[1499]
     var float c1H = na
     var float c1L = na
     var float cH  = na
@@ -1282,7 +1284,7 @@ abDir(simple string htf) =>
             dir  := 0
             want := 0
             left := 0
-    dir
+    bar_index < 0 and not na(bufWarm) ? 0 : dir
 
 int    abSteps = biasFilter == 'Auto Bias 1' ? 1 : biasFilter == 'Auto Bias 2' ? 2 : 0
 string abHtf   = abSteps == 2 ? abNextHtf(abNextHtf(autoTf)) : abNextHtf(autoTf)
@@ -2111,6 +2113,9 @@ max_bars_back(close, 1500)
 // Drawings anchored far back (ADR lines from the day's first bar: ~1400 bars on 1m) need the bar's
 // time: without this, every new realtime bar asks one bar further than the buffer chosen on history.
 max_bars_back(time, 5000)
+// A drawing's left end is never moved further back than the time buffer allows
+xAnchor(int x) =>
+    na(x) ? na : math.max(x, bar_index - 4900)
 
 flLine(float px, int b, bool isBull, int swingBar) =>
     if not na(px) and not na(b) and b < bar_index
@@ -2122,7 +2127,7 @@ flLine(float px, int b, bool isBull, int swingBar) =>
                 endB := bar_index - off
                 break
         if endB > nz(swingBar, b)
-            flLines.push(line.new(b, px, endB, px, xloc = xloc.bar_index, color = flColor, style = lineStyleFromStr(flStyle), width = flWidth))
+            flLines.push(line.new(xAnchor(b), px, endB, px, xloc = xloc.bar_index, color = flColor, style = lineStyleFromStr(flStyle), width = flWidth))
 
 flDraw(C2Setup s) =>
     if not na(s) and s.revealed and not s.dead
@@ -2149,9 +2154,9 @@ if showLH and calcOn and htfCandles.size() > 0
             line.delete(lhHi.pop())
             line.delete(lhLo.pop())
     else
-        line.set_xy1(lhHi.first(), line.get_x1(lhHi.first()), cNow.h)
+        line.set_xy1(lhHi.first(), xAnchor(line.get_x1(lhHi.first())), cNow.h)
         line.set_xy2(lhHi.first(), bar_index, cNow.h)
-        line.set_xy1(lhLo.first(), line.get_x1(lhLo.first()), cNow.l)
+        line.set_xy1(lhLo.first(), xAnchor(line.get_x1(lhLo.first())), cNow.l)
         line.set_xy2(lhLo.first(), bar_index, cNow.l)
 
 //#region [PLOT]
@@ -2161,9 +2166,9 @@ hzLine(line ln, bool on, int x1, float y, int x2, color c, string st, int w) =>
     line l = ln
     if on and not na(x1) and not na(y) and not na(x2)
         if na(l)
-            l := line.new(x1, y, x2, y, xloc = xloc.bar_index, color = c, style = lineStyleFromStr(st), width = w)
+            l := line.new(xAnchor(x1), y, x2, y, xloc = xloc.bar_index, color = c, style = lineStyleFromStr(st), width = w)
         else
-            line.set_xy1(l, x1, y)
+            line.set_xy1(l, xAnchor(x1), y)
             line.set_xy2(l, x2, y)
             line.set_color(l, c)
             line.set_style(l, lineStyleFromStr(st))
@@ -2596,14 +2601,14 @@ if barstate.islast
         float dnPx = adrDayH - adrVal
         int   x2   = bar_index + candleOffset - 3
         if na(adrUpLn)
-            adrUpLn  := line.new(adrDayStartBar, upPx, x2, upPx, xloc = xloc.bar_index, color = adrLineColor, style = lineStyleFromStr(adrLineStyle))
-            adrDnLn  := line.new(adrDayStartBar, dnPx, x2, dnPx, xloc = xloc.bar_index, color = adrLineColor, style = lineStyleFromStr(adrLineStyle))
+            adrUpLn  := line.new(xAnchor(adrDayStartBar), upPx, x2, upPx, xloc = xloc.bar_index, color = adrLineColor, style = lineStyleFromStr(adrLineStyle))
+            adrDnLn  := line.new(xAnchor(adrDayStartBar), dnPx, x2, dnPx, xloc = xloc.bar_index, color = adrLineColor, style = lineStyleFromStr(adrLineStyle))
             adrUpLbl := label.new(x2, upPx, 'ADR+', xloc = xloc.bar_index, style = label.style_label_left, color = na, textcolor = adrLineColor, size = size.small, text_font_family = font.family_default)
             adrDnLbl := label.new(x2, dnPx, 'ADR-', xloc = xloc.bar_index, style = label.style_label_left, color = na, textcolor = adrLineColor, size = size.small, text_font_family = font.family_default)
         else
-            line.set_xy1(adrUpLn, adrDayStartBar, upPx)
+            line.set_xy1(adrUpLn, xAnchor(adrDayStartBar), upPx)
             line.set_xy2(adrUpLn, x2, upPx)
-            line.set_xy1(adrDnLn, adrDayStartBar, dnPx)
+            line.set_xy1(adrDnLn, xAnchor(adrDayStartBar), dnPx)
             line.set_xy2(adrDnLn, x2, dnPx)
             label.set_xy(adrUpLbl, x2, upPx)
             label.set_xy(adrDnLbl, x2, dnPx)
