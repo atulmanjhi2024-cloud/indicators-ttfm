@@ -6,6 +6,26 @@ A Pine Script v6 indicator for TradingView. It finds Fractal Model setups (C1 �
 
 Paste [fractal_alignment.pine](fractal_alignment.pine) into the Pine Editor, save, and add it to a chart.
 
+## Settings at a glance
+
+In the order they appear in the settings window. Defaults work out of the box; details in the sections below.
+
+| Group | What it does | Default |
+|---|---|---|
+| Alerts Settings | Master switch + model, Early CISD, SMT and protected swing alerts | On (Early CISD off) |
+| Warnings | Message when the timeframe or a pair does not fit | Off |
+| General Settings | History, fractal (Automatic / manual / Custom), C2 / C3 / C4 models, bias (Neutral, Bullish, Bearish, Auto Bias 1 / 2), Hide Setups | History 1, Automatic, Neutral |
+| HTF Candles | Model HTF block (count, size, offset, colors), HTF 1 / HTF 2 extra blocks, HTF Open, Previous EQ, L/H lines | 4 candles, Small, extra blocks off |
+| HTF Candles Time Labels | Time under each candle, block title (timeframe + time left), 12h / 24h, time zone | On, title above and below |
+| Model Style | CISD, Early CISD, candle EQ, C1 sweep, labels, T-Spot | All on (Early CISD off) |
+| Protected Swings | Dots and lines after the CISD | On |
+| Asset Correlation | SMT and PSP, pairs (Automatic / Custom), labels, line style | On, Automatic |
+| Standard Deviation Projections | Levels from the CISD ↔ C2 extreme range | Off |
+| Formation Liquidity | C1 targets until taken | On |
+| Time Filter | New setups only inside checked windows | Off |
+| ADR / CDR | ADR length, ADR± lines | 14 days, lines off |
+| Info Table | Rows, style (Text / Table), size, position | Text, bottom right |
+
 ## Model
 
 The indicator picks a **model HTF** from the chart timeframe (`Fractal: Automatic`):
@@ -35,7 +55,7 @@ On the chart:
 - **T-Spot (C3 / C4):** between the previous HTF candle's equilibrium (EQ) and the current candle's open, growing bar by bar, with the EQ as a dotted line. `C4` at the start of the C4 box.
 - **CISD line:** ends one candle after the close through the level. **Early C2 CISD** (off by default): a CISD before C2 closes, dotted.
 - **Candle 1 Sweep:** from the C1 extreme that C2 took to the end of C2.
-- **Protected Swings:** continuations after the CISD. The swing must reach a point of interest (a fair value gap in the setup's direction, or an untaken swing it sweeps), then price closes through the opposite candles that led into it. A dot on the swing and a short line at the level; the dot turns grey once price takes the swing back.
+- **Protected Swings:** continuations after the CISD. The swing must reach a point of interest (a fair value gap in the setup's direction, or an untaken swing it sweeps), then price closes through the opposite candles that led into it. A dot on the swing and a short line at the level; the dot turns gray once price takes the swing back.
 - **Formation Liquidity:** the model's targets, the high (bullish) or low (bearish) of C1 and of the candle before it. A line ends at the bar that takes it.
 - **SD projections** (off by default): multiples of the CISD ↔ C2 extreme range.
 - **XC2:** price closes beyond the C2 extreme (red in C3, orange later; the model's SMT goes with it). **XC4:** C2 models only; during C4 price trades through C3's opposite extreme.
@@ -63,7 +83,7 @@ On the chart:
 
 ## Time Filter (off by default)
 
-New setups only when C3 opens inside a checked window, on charts below `Apply below` (1H). Three windows, New York time unless a UTC offset is set: 02:00–05:00, 08:00–11:00, 13:30–16:15, all unchecked by default (no window checked = nothing filtered).
+New setups only when the model is found inside a checked window (when C3 opens, or C4 for a C3 model), on charts below `Apply below` (1H). Three windows, New York time unless a UTC offset is set: 02:00–05:00, 08:00–11:00, 13:30–16:15, all unchecked by default (no window checked = nothing filtered).
 
 ## Info Table and ADR
 
