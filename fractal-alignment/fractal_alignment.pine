@@ -164,7 +164,7 @@ f3Sess        = input.session('1330-1615', '', group = grpTimeF, inline = 'f3', 
 
 // [ADR] average daily range + current daily range, shown in the Info Table
 grpAdr       = 'ADR / CDR'
-adrShow      = input.bool(false, 'Show in Info Table', group = grpAdr, inline = 'adrtbl')
+adrShow      = input.bool(true, 'Show in Info Table', group = grpAdr, inline = 'adrtbl')
 adrLen       = input.int(14, 'Length', minval = 1, maxval = 100, group = grpAdr, inline = 'adrtbl', tooltip = 'ADR = average high-low of this many completed days (today excluded). CDR = today\'s high-low so far, with its share of ADR. A day starts 18:00 New York (forex 17:00), on every broker. Forex in pips, the rest in price points.')
 adrLinesShow = input.bool(false, 'ADR+ / ADR- Lines', group = grpAdr, inline = 'adrln', tooltip = 'ADR+ = today\'s low + ADR, ADR- = today\'s high - ADR: how far the day can still reach if it makes a full average range. Drawn for the current day only.')
 adrLineColor = input.color(color.new(color.gray, 0), '', group = grpAdr, inline = 'adrln')

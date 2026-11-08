@@ -74,7 +74,7 @@ Bias: Neutral
 SMT(Auto): ES1!, YM1!
 ```
 
-One column; each row can be turned off. **ADR · CDR %** and the date are off by default.
+One column; each row can be turned off. **ADR · CDR %** is on by default, the date off.
 
 - **ADR:** average high-low of the last 14 completed days (today excluded); pips on forex, points elsewhere. The day starts 18:00 New York (forex 17:00) on every broker.
 - **CDR:** today's range so far as a share of ADR.
