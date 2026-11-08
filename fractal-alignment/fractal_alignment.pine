@@ -72,7 +72,7 @@ tzHour        = input.int(1, '', minval = -12, maxval = 14, group = grpTime, inl
 tzMin         = input.int(0, ':', minval = 0, maxval = 59, group = grpTime, inline = 'tz', active = useCustomTz, tooltip = 'Off: New York time. On: this UTC offset, e.g. 3 : 0 for Turkey.')
 showHtfName   = input.bool(true, 'HTF Label', group = grpTime, inline = 'hname')
 showHtfTimer  = input.bool(true, 'Remaining Time', group = grpTime, inline = 'hname')
-htfNamePos    = input.string('Top', '', options = ['Top', 'Bottom'], group = grpTime, inline = 'hname', tooltip = 'Over (or under) each block of HTF candles: its timeframe and the time left until the forming candle closes, e.g. 1H · 12:40.')
+htfNamePos    = input.string('Both', '', options = ['Both', 'Top', 'Bottom'], group = grpTime, inline = 'hname', tooltip = 'Over and / or under each block of HTF candles: its timeframe and the time left until the forming candle closes, e.g. 1H (12:40).')
 htfInfoColor  = color.new(#1a1a1a, 0)   // HTF time label text
 
 grpVisuals      = 'Model Style'
@@ -2188,13 +2188,18 @@ xLabel(int x, float y, string txt, string st, color tc) =>
         xLabels.push(label.new(x, y, txt, xloc = xloc.bar_index, yloc = yloc.price, style = st, color = na, textcolor = tc, size = smallerSize(labelSize), text_font_family = font.family_default))
     xUsed.set(2, i + 1)
 
-// Block title: '1H · 12:40' (HTF Label + Remaining Time) over the block's highest high, or under its lowest low
-// (a line lower when the time labels sit there)
+// Block title: the timeframe and, under it, the time left in brackets ('1H' / '(12:40)'), over the block's highest
+// high, under its lowest low (mirrored: time first), or both (a line lower when the time labels sit below)
 xTitle(int x, float top, float bot, string tf) =>
-    string t = (showHtfName ? tfLabel(tf) : '') + (showHtfName and showHtfTimer ? ' · ' : '') + (showHtfTimer ? formatRemaining(htfCloseTime(tf) - (barstate.isrealtime ? timenow : time_close)) : '')
-    if t != ''
-        bool below = htfNamePos == 'Bottom'
-        xLabel(x, below ? bot : top, below and showHtfStamps ? ' \n' + t : t, below ? label.style_label_up : label.style_label_down, htfInfoColor)
+    string nm = showHtfName ? tfLabel(tf) : ''
+    string tm = showHtfTimer ? '(' + formatRemaining(htfCloseTime(tf) - (barstate.isrealtime ? timenow : time_close)) + ')' : ''
+    string up = nm + (nm != '' and tm != '' ? '\n' : '') + tm
+    string dn = tm + (nm != '' and tm != '' ? '\n' : '') + nm
+    if up != ''
+        if htfNamePos != 'Bottom'
+            xLabel(x, top, up, label.style_label_down, htfInfoColor)
+        if htfNamePos != 'Top'
+            xLabel(x, bot, showHtfStamps ? ' \n' + dn : dn, label.style_label_up, htfInfoColor)
 
 // A pair's candle with the same open time (else the same position), flipped for an inverse pair
 xPair(XData p, bool inv, int i, int t) =>
