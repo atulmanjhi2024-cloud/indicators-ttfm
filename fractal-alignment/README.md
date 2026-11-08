@@ -45,7 +45,7 @@ On the chart:
 - **Model HTF block** (1H on a 5m chart): 4–40 candles, size, offset. White / black candles.
 - **HTF 1 / HTF 2** (off by default): extra blocks to the right. Auto = one and two steps above the model HTF, or pick 15m, 30m, 1H, 4H, 6H, 7H, D, W, M. They show Previous EQ, sweeps, SMT and PSP; no model runs on them. Up to 10 candles each.
 - **HTF Label + Remaining Time** over and / or under each block, e.g. `1H (12:40)`.
-- **HTF Open** and **Previous EQ** on the chart, on the HTF candles, or both. **L/H Lines** (off by default). **Time Labels** (off by default) under each candle.
+- **HTF Open** and **Previous EQ** on the chart, on the HTF candles, or both. **L/H Lines** (off by default). **Time Labels** under each candle (open time; day name on daily and above).
 - **Live sweep:** when the forming candle takes the previous candle's extreme and trades back inside.
 - **SMT** between consecutive HTF candles, including the forming one; hidden once a newer candle trades beyond it.
 - **Hide Setups?** hides every model drawing and model alert; the HTF candles stay.

@@ -65,7 +65,7 @@ prevEqWidth = input.int(1, 'Width', minval = 1, group = grpCandles, inline = 'pe
 drawType = input.string('Both', 'Drawings Type', options = ['On Chart', 'HTF Candle', 'Both'], group = grpCandles, tooltip = "Where HTF Open and Previous EQ are drawn.\n\nOn Chart: from the open of the current HTF candle to the last bar.\nHTF Candle: on the HTF candles on the right.\nBoth: one line from the chart to the HTF candles.\n\nL/H Lines (the high and low of each HTF candle, over its own period) and vertical lines are always on the chart.")
 
 grpTime       = 'HTF Candles Time Labels'
-showHtfStamps = input.bool(false, 'Enable Time Labels?', group = grpTime, tooltip = 'Open time under each HTF candle (the day name for daily and above).')
+showHtfStamps = input.bool(true, 'Enable Time Labels?', group = grpTime, tooltip = 'Open time under each HTF candle (the day name for daily and above).')
 timeFormat    = input.string('24h', 'Time Format', options = ['24h', '12h'], group = grpTime)
 useCustomTz   = input.bool(false, 'Custom Timezone? UTC', group = grpTime, inline = 'tz')
 tzHour        = input.int(1, '', minval = -12, maxval = 14, group = grpTime, inline = 'tz', active = useCustomTz)
