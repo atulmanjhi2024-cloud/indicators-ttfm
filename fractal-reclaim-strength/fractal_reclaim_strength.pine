@@ -56,7 +56,7 @@ format_pct(float val) =>
     na(val) ? "–" : str.tostring(val, "0") + "%"
 
 format_delta(float val) =>
-    na(val) ? "–" : (val > 0.0 ? "+" : "") + str.tostring(val, "0") + " pp"
+    na(val) ? "–" : (math.round(val) > 0 ? "+" : "") + str.tostring(math.round(val) == 0 ? 0.0 : val, "0") + " pp"
 
 // ==========================================
 // 3. INCREMENTAL COUNTERS (6 BINS + BASE)
@@ -378,7 +378,8 @@ if barstate.islast
             cell(2, row, format_pct(r_pct), num, bg)
             cell(3, row, format_pct(f_pct), num, bg)
             cell(4, row, format_pct(x_pct), num, bg)
-            color d_col = na(delta) ? faint : delta > 0.0 ? bull_col : delta < 0.0 ? bear_col : mid
+            float d_rnd = na(delta) ? na : math.round(delta)
+            color d_col = na(d_rnd) ? faint : d_rnd > 0 ? bull_col : d_rnd < 0 ? bear_col : mid
             cell(5, row, format_delta(delta), d_col, bg)
 
         // Row 9: whole sample
