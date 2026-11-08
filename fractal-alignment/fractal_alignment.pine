@@ -909,7 +909,7 @@ icFindCisdLevel(int extremeBarIdx, int bias) =>
     float cisdPrice  = na
     int   cisdIdx    = na
     bool  foundFirst = false
-    for i = offset to math.min(offset + 500, bar_index)
+    for i = offset to math.min(offset + 500, bar_index, 1499)
         float cOpen  = open[i]
         float cClose = close[i]
         int   att    = cClose > cOpen ? 1 : cClose < cOpen ? -1 : 0
@@ -1238,7 +1238,7 @@ abDir(simple string htf) =>
             float lv    = na
             bool  found = false
             int   off0  = bar_index - eb
-            for i = off0 to math.min(off0 + 300, bar_index)
+            for i = off0 to math.min(off0 + 300, bar_index, 1499)
                 int att = close[i] > open[i] ? 1 : close[i] < open[i] ? -1 : 0
                 if att == 0
                     continue
@@ -2102,8 +2102,12 @@ if showVlines and periodChanged and calcOn
 // that trades through it; an untaken one runs to the last bar. Levels already taken before the swing
 // are not targets.
 var array<line> flLines = array.new<line>()
+// Loops read these up to ~1500 bars back; reserving the history up front keeps a realtime bar
+// from asking for more than the buffer chosen on historical bars (runtime error on candle close).
 max_bars_back(high, 1500)
 max_bars_back(low, 1500)
+max_bars_back(open, 1500)
+max_bars_back(close, 1500)
 
 flLine(float px, int b, bool isBull, int swingBar) =>
     if not na(px) and not na(b) and b < bar_index
