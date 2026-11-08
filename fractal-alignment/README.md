@@ -42,10 +42,10 @@ On the chart:
 
 ## HTF candles
 
-- **Model HTF block** (1H on a 5m chart): 4–40 candles, size, offset. White / black candles.
-- **HTF 1 / HTF 2** (off by default): extra blocks to the right. Auto = one and two steps above the model HTF, or pick 15m, 30m, 1H, 4H, 6H, 7H, D, W, M. They show Previous EQ, sweeps, SMT and PSP; no model runs on them. Up to 10 candles each.
-- **HTF Label + Remaining Time** over and / or under each block, e.g. `1H (12:40)`.
-- **HTF Open** and **Previous EQ** on the chart, on the HTF candles, or both. **L/H Lines** (off by default). **Time Labels** under each candle (open time; day name on daily and above).
+- **Model HTF block** (1H on a 5m chart): 4–40 candles, size (Small / Normal / Large), offset. White / black candles, packed close together.
+- **HTF 1 / HTF 2** (off by default): extra blocks to the right. Auto = one and two steps above the model HTF (15m, 1H, 4H, D, W, M), or pick 15m, 30m, 1H, 90m, 4H, 6H, 7H, D, W, M; Auto never picks 90m, 6H or 7H. They show Previous EQ, sweeps, SMT and PSP; no model runs on them. Up to 10 candles each.
+- **HTF Label + Remaining Time** above and below each block by default (`Top` / `Bottom` to keep one): the timeframe in bold, the time left in brackets under it, e.g. `1H` / `(12:40)`.
+- **HTF Open** and **Previous EQ** on the chart, on the HTF candles, or both. **L/H Lines** (off by default). **Time Labels** under each candle (on by default): open time, the day name on daily, the week's Monday date on weekly (`NOV 2`), the month on monthly.
 - **Live sweep:** when the forming candle takes the previous candle's extreme and trades back inside.
 - **SMT** between consecutive HTF candles, including the forming one; hidden once a newer candle trades beyond it.
 - **Hide Setups?** hides every model drawing and model alert; the HTF candles stay.
@@ -58,11 +58,12 @@ On the chart:
   - Crypto: BTCUSDT ↔ ETHUSDT (also `.P` perpetuals and BTCUSD ↔ ETHUSD).
   - `Custom`: two symbols by hand, each with `Inverse?` (e.g. DXY).
 - **SMT on the chart** belongs to a setup: **reversal** from the C1 extreme to the C2 extreme, and **continuation** after C2 closes (a pair goes beyond its own C2 extreme while price does not; the line's end follows price). The label names the pair.
+- **SMT color:** bullish SMT in the Bullish CISD color (blue), bearish in the Bearish CISD color (red), on the chart and on every HTF block. Pick a color for `SMT Line` to draw every SMT in that one color.
 - **PSP:** C1 and / or C2 close a different color than the pair's same candle (`Candle 1 / Candle 2 / Both`).
 
 ## Time Filter (off by default)
 
-New setups only inside the checked windows (default New York 02:00–05:00, 08:00–11:00, 13:30–16:15), on charts below `Apply below` (1H).
+New setups only when C3 opens inside a checked window, on charts below `Apply below` (1H). Three windows, New York time unless a UTC offset is set: 02:00–05:00, 08:00–11:00, 13:30–16:15, all unchecked by default (no window checked = nothing filtered).
 
 ## Info Table and ADR
 
@@ -71,10 +72,11 @@ New setups only inside the checked windows (default New York 02:00–05:00, 08:0
  5m-1H Model
    00:24:13
 Bias: Neutral
-SMT(Auto): ES1!, YM1!
+SMT (Auto): ES1!, YM1!
+  ADR 245.5 · 62%
 ```
 
-One column; each row can be turned off. **ADR · CDR %** is on by default, the date off.
+One column; each row can be turned off. **ADR · CDR %** is on by default, the date off. Style `Text` (default) is text only with no background; `Table` adds a background. `Border?` adds a frame.
 
 - **ADR:** average high-low of the last 14 completed days (today excluded); pips on forex, points elsewhere. The day starts 18:00 New York (forex 17:00) on every broker.
 - **CDR:** today's range so far as a share of ADR.
@@ -82,12 +84,16 @@ One column; each row can be turned off. **ADR · CDR %** is on by default, the d
 
 ## Alerts
 
-**Alerts Settings** at the top: the master switch **Alerts?**, then **Model Candles?** (Candle 2 / 3 / 4 and CISD Confirmed), **Early CISD?**, **SMT Divergence?**, **Protected Swings?**. Set them up from the indicator's menu → Add alert. Separate conditions for the CISD alerts are in the alert dialog too.
+**Alerts Settings** at the top: the master switch **Alerts?**, then **Model Candles?** (Candle 2 / 3 / 4 and CISD Confirmed), **Early CISD?**, **SMT Divergence?**, **Protected Swings?**. To create one: the indicator's menu (three dots next to its name) → Add alert, condition **Any alert() function call**. An alert keeps the settings it was created with; after changing them, create it again. The dialog also lists separate conditions for the CISD alerts (Bullish / Bearish CISD Confirmed, Bullish / Bearish Early CISD).
 
 ## Other
 
 - **Warnings** (off by default): a short message when the chart timeframe does not fit the fractal or a pair has no data.
 - **Calculated bars** (2000, TradingView's own setting): the first fifth (at most 500) warms up the HTF candles; the model runs on the rest. Lower it for speed, raise it to see further back.
+
+## Colors and dark theme
+
+One soft gray palette (TradingView's own grays) with blue / red for bullish / bearish. On a dark chart background, colors left at their default (bear body, borders, wicks, C1 sweep, block titles, C labels, table background) switch to light tones automatically; a color you pick yourself is kept.
 
 ## Concepts
 

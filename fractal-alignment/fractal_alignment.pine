@@ -6,10 +6,10 @@ indicator("Fractal Alignment", shorttitle = "Fractal Alignment", overlay = true,
 // TradingView stores settings by position (in_0, in_1 ...): adding or removing an input shifts every later one.
 
 grpAlerts       = 'Alerts Settings'
-showAlerts      = input.bool(true, 'Alerts?', group = grpAlerts, tooltip = "Master switch for every alert of this indicator.\n\nTo create one: click the three dots next to the indicator name (or right-click it on the chart) > Add alert > Create. Alerts keep the settings they were created with; after changing these, create the alert again.")
+showAlerts      = input.bool(true, 'Alerts?', group = grpAlerts, tooltip = "Master switch for every alert of this indicator.\n\nTo create one: click the three dots next to the indicator name (or right-click it on the chart) > Add alert > Create. Condition: Any alert() function call. Alerts keep the settings they were created with; after changing these, create the alert again.")
 modelAlerts     = input.bool(true, 'Model Candles?', group = grpAlerts, tooltip = 'A full model: a C2 or C3 closure with its CISD, or its continuation. The alert says Candle 2, Candle 3 or Candle 4.')
 earlyCisdAlerts = input.bool(false, 'Early CISD?', group = grpAlerts, tooltip = 'A CISD before the HTF candle has closed. The alert says Potential Candle 2.')
-smtAlerts       = input.bool(true, 'SMT Divergence?', group = grpAlerts, tooltip = 'A correlated pair disagrees, only together with an early CISD or a model.')
+smtAlerts       = input.bool(true, 'SMT Divergence?', group = grpAlerts, tooltip = 'A correlated pair disagrees while a model runs: after C2 closes, the pair goes past its own C2 extreme while price does not.')
 protAlerts      = input.bool(true, 'Protected Swings?', group = grpAlerts, tooltip = 'A new protected swing (continuation dot) after the reversal CISD.')
 
 grpWarn  = 'Warnings and Error Messages'
@@ -31,23 +31,23 @@ htfSize        = input.string('Small', 'Size', options = ['Small', 'Normal', 'La
 hideHtf        = input.bool(false, 'Hide?', group = grpCandles, inline = 'size')
 hideSetups     = input.bool(false, 'Hide Setups?', group = grpCandles, inline = 'size', tooltip = 'Hide?: hides the HTF candles on the right.\n\nHide Setups?: no models on the chart (C2 / C3 / C4, CISD, T-Spots, protected swings, chart SMT, projections, formation liquidity, early CISD), and no model alerts. The HTF candles and their lines stay.')
 showX1         = input.bool(false, 'HTF 1', group = grpCandles, inline = 'xhtf')
-x1Sel          = input.string('Auto', '', options = ['Auto', '15m', '30m', '1H', '4H', '6H', '7H', 'D', 'W', 'M'], group = grpCandles, inline = 'xhtf', active = showX1)
+x1Sel          = input.string('Auto', '', options = ['Auto', '15m', '30m', '1H', '90m', '4H', '6H', '7H', 'D', 'W', 'M'], group = grpCandles, inline = 'xhtf', active = showX1)
 showX2         = input.bool(false, 'HTF 2', group = grpCandles, inline = 'xhtf')
-x2Sel          = input.string('Auto', '', options = ['Auto', '15m', '30m', '1H', '4H', '6H', '7H', 'D', 'W', 'M'], group = grpCandles, inline = 'xhtf', active = showX2, tooltip = 'Extra HTF candles to the right of the model HTF candles, with the timeframe written above each block.\n\nAuto: HTF 1 = one step above the model HTF, HTF 2 = one step above HTF 1 (1m-15m: 1H / 4H, 5m-1H: 4H / D, 15m-4H: D / W, 1H-1D: W / M). 6H and 7H are never picked by Auto.\n\nNo model runs on them; they show Previous EQ, Candle 1 Sweep, SMT and PSP like the model block (HTF Open only on the model block), with the same settings. Up to 10 candles each (HTF Candles).')
-candleOffsetIn = input.int(0, 'Offset', minval = 0, group = grpCandles, tooltip = 'Extra empty bars between the last chart candle and the HTF candles.')
+x2Sel          = input.string('Auto', '', options = ['Auto', '15m', '30m', '1H', '90m', '4H', '6H', '7H', 'D', 'W', 'M'], group = grpCandles, inline = 'xhtf', active = showX2, tooltip = 'Extra HTF candles to the right of the model HTF candles, with its title (HTF Label / Remaining Time) above and / or below each block.\n\nAuto: HTF 1 = one step above the model HTF, HTF 2 = one step above HTF 1 (1m-15m: 1H / 4H, 5m-1H: 4H / D, 15m-4H: D / W, 1H-1D: W / M). 90m, 6H and 7H are never picked by Auto.\n\nNo model runs on them; they show Previous EQ, Candle 1 Sweep, SMT and PSP like the model block (HTF Open only on the model block), with the same settings. Up to 10 candles each (HTF Candles).')
+candleOffsetIn = input.int(0, 'Offset', minval = 0, maxval = 100, group = grpCandles, tooltip = 'Extra empty bars between the last chart candle and the HTF candles.')
 bullBody       = input.color(color.rgb(255, 255, 255), 'Body', group = grpCandles, inline = 'body')
-bearBody       = input.color(color.rgb(0, 0, 0), '', group = grpCandles, inline = 'body')
-borderBull     = input.color(color.rgb(0, 0, 0), 'Border', group = grpCandles, inline = 'border')
-borderBear     = input.color(color.rgb(0, 0, 0), '', group = grpCandles, inline = 'border')
-wickBull       = input.color(color.rgb(0, 0, 0), 'Wick', group = grpCandles, inline = 'wick')
-wickBear       = input.color(color.rgb(0, 0, 0), '', group = grpCandles, inline = 'wick')
+bearBodyIn     = input.color(#131722, '', group = grpCandles, inline = 'body')
+borderBullIn   = input.color(#2a2e39, 'Border', group = grpCandles, inline = 'border')
+borderBearIn   = input.color(#2a2e39, '', group = grpCandles, inline = 'border')
+wickBullIn     = input.color(#2a2e39, 'Wick', group = grpCandles, inline = 'wick')
+wickBearIn     = input.color(#2a2e39, '', group = grpCandles, inline = 'wick', tooltip = 'Body, Border, Wick: left bullish, right bearish.')
 
-htfOpenColor = input.color(color.new(#787B86, 40), '', group = grpCandles, inline = 'htfopen')
+htfOpenColor = input.color(color.new(#787b86, 20), '', group = grpCandles, inline = 'htfopen')
 showHtfOpen  = input.bool(true, 'HTF Open', group = grpCandles, inline = 'htfopen')
 htfOpenStyle = input.string('Solid', '', options = ['Solid', 'Dashed', 'Dotted'], group = grpCandles, inline = 'htfopen')
 htfOpenWidth = input.int(1, 'Width', minval = 1, group = grpCandles, inline = 'htfopen')
 
-lineColor  = input.color(color.new(#0f0f0f, 85), '', group = grpCandles, inline = 'vline')
+lineColor  = input.color(color.new(#787b86, 75), '', group = grpCandles, inline = 'vline')
 showVlines = input.bool(true, 'Vertical Lines', group = grpCandles, inline = 'vline')
 lineStyle  = input.string('Solid', '', options = ['Solid', 'Dashed', 'Dotted'], group = grpCandles, inline = 'vline')
 lineWidth  = input.int(1, 'Width', minval = 1, group = grpCandles, inline = 'vline')
@@ -57,15 +57,15 @@ showLH  = input.bool(false, 'L/H Lines', group = grpCandles, inline = 'lh')
 lhStyle = input.string('Dotted', '', options = ['Solid', 'Dashed', 'Dotted'], group = grpCandles, inline = 'lh')
 lhWidth = input.int(1, 'Width', minval = 1, group = grpCandles, inline = 'lh')
 
-prevEqColor = input.color(color.new(#000000, 0), '', group = grpCandles, inline = 'peq')
+prevEqColor = input.color(#787b86, '', group = grpCandles, inline = 'peq')
 showPrevEq  = input.bool(true, 'Previous EQ', group = grpCandles, inline = 'peq')
 prevEqStyle = input.string('Dotted', '', options = ['Solid', 'Dashed', 'Dotted'], group = grpCandles, inline = 'peq')
 prevEqWidth = input.int(1, 'Width', minval = 1, group = grpCandles, inline = 'peq')
 
-drawType = input.string('Both', 'Drawings Type', options = ['On Chart', 'HTF Candle', 'Both'], group = grpCandles, tooltip = "Where HTF Open and Previous EQ are drawn.\n\nOn Chart: from the open of the current HTF candle to the last bar.\nHTF Candle: on the HTF candles on the right.\nBoth: one line from the chart to the HTF candles.\n\nL/H Lines (the high and low of each HTF candle, over its own period) and vertical lines are always on the chart.")
+drawType = input.string('Both', 'Drawings Type', options = ['On Chart', 'HTF Candle', 'Both'], group = grpCandles, tooltip = "Where HTF Open and Previous EQ are drawn.\n\nOn Chart: from the open of the current HTF candle to the last bar.\nHTF Candle: on the HTF candles on the right.\nBoth: one line from the chart to the HTF candles.\n\nL/H Lines (the high and low of each HTF candle, over its own period) and vertical lines are drawn on the chart when turned on, whatever this setting.")
 
 grpTime       = 'HTF Candles Time Labels'
-showHtfStamps = input.bool(true, 'Enable Time Labels?', group = grpTime, tooltip = 'Open time under each HTF candle (the day name for daily and above).')
+showHtfStamps = input.bool(true, 'Enable Time Labels?', group = grpTime, tooltip = 'Open time under each HTF candle: the day name for daily, the date for weekly (NOV 2), the month for monthly.')
 timeFormat    = input.string('24h', 'Time Format', options = ['24h', '12h'], group = grpTime)
 useCustomTz   = input.bool(false, 'Custom Timezone? UTC', group = grpTime, inline = 'tz')
 tzHour        = input.int(1, '', minval = -12, maxval = 14, group = grpTime, inline = 'tz', active = useCustomTz)
@@ -73,28 +73,29 @@ tzMin         = input.int(0, ':', minval = 0, maxval = 59, group = grpTime, inli
 showHtfName   = input.bool(true, 'HTF Label', group = grpTime, inline = 'hname')
 showHtfTimer  = input.bool(true, 'Remaining Time', group = grpTime, inline = 'hname')
 htfNamePos    = input.string('Both', '', options = ['Both', 'Top', 'Bottom'], group = grpTime, inline = 'hname', tooltip = 'Over and / or under each block of HTF candles: its timeframe and the time left until the forming candle closes, e.g. 1H (12:40).')
-htfInfoColor  = color.new(#1a1a1a, 0)   // HTF time label text
+htfInfoColor  = #787b86   // HTF time labels and time left (mid gray)
+htfNameColorL = #2a2e39   // HTF block timeframe name (dark, bold)
 
 grpVisuals      = 'Model Style'
 showEarlyCisd   = input.bool(false, 'Show Early C2 CISD', group = grpVisuals, inline = 'early')
 earlyCisdStyle  = input.string('Dotted', '', options = ['Solid', 'Dashed', 'Dotted'], group = grpVisuals, inline = 'early', active = showEarlyCisd, tooltip = 'Early CISD: price closes through the CISD level while C2 is still forming, before the C2 candle closes. Drawn in the Bullish / Bearish CISD colors. Its alert is Early CISD? in Alerts Settings.')
 
-cisdBullColor = input.color(#2962FF, '', group = grpVisuals, inline = 'bullcisd')
+cisdBullColor = input.color(#2962ff, '', group = grpVisuals, inline = 'bullcisd')
 showBullCisd  = input.bool(true, 'Bullish CISD', group = grpVisuals, inline = 'bullcisd')
 cisdBullStyle = input.string('Solid', '', options = ['Solid', 'Dashed', 'Dotted'], group = grpVisuals, inline = 'bullcisd', active = showBullCisd)
 cisdBullWidth = input.int(2, 'Width', minval = 1, group = grpVisuals, inline = 'bullcisd', active = showBullCisd)
 
-cisdBearColor = input.color(#F23645, '', group = grpVisuals, inline = 'bearcisd')
+cisdBearColor = input.color(#f23645, '', group = grpVisuals, inline = 'bearcisd')
 showBearCisd  = input.bool(true, 'Bearish CISD', group = grpVisuals, inline = 'bearcisd')
 cisdBearStyle = input.string('Solid', '', options = ['Solid', 'Dashed', 'Dotted'], group = grpVisuals, inline = 'bearcisd', active = showBearCisd)
 cisdBearWidth = input.int(2, 'Width', minval = 1, group = grpVisuals, inline = 'bearcisd', active = showBearCisd)
 
-eqColor = input.color(color.new(#000000, 0), '', group = grpVisuals, inline = 'eq')
+eqColor = input.color(#787b86, '', group = grpVisuals, inline = 'eq')
 showEQ  = input.bool(true, 'Candle Equilibrium', group = grpVisuals, inline = 'eq')
 eqStyle = input.string('Dotted', '', options = ['Solid', 'Dashed', 'Dotted'], group = grpVisuals, inline = 'eq')
-eqWidth = input.int(1, 'Width', minval = 1, group = grpVisuals, inline = 'eq', tooltip = 'Dotted line inside the T-Spot box: the middle of the previous HTF candle.')
+eqWidth = input.int(1, 'Width', minval = 1, group = grpVisuals, inline = 'eq', tooltip = 'Line inside the T-Spot box: the middle of the previous HTF candle.')
 
-sweepColor   = input.color(color.new(#000000, 0), '', group = grpVisuals, inline = 'sweep')
+sweepColorIn = input.color(#000000, '', group = grpVisuals, inline = 'sweep')
 showSweep    = input.bool(true, 'Candle 1 Sweep', group = grpVisuals, inline = 'sweep')
 sweepStyle   = input.string('Solid', '', options = ['Solid', 'Dashed', 'Dotted'], group = grpVisuals, inline = 'sweep')
 sweepWidth   = input.int(1, 'Width', minval = 1, group = grpVisuals, inline = 'sweep')
@@ -102,18 +103,18 @@ sweepDisplay = input.string('Both', 'C1 Sweep Display', options = ['Both', 'Char
 
 showLabels  = input.bool(true, 'Show Labels?', group = grpVisuals, inline = 'lbl')
 labelSize   = input.string('Small', '', options = ['Tiny', 'Small', 'Normal', 'Large', 'Huge'], group = grpVisuals, inline = 'lbl', active = showLabels)
-c2c3c4Color = color.new(#2e2e2e, 0)   // C2 / C3 / C4 label text
+c2c3c4ColorL = #2a2e39   // C2 / C3 / C4 label text
 
 showTSpot      = input.bool(true, 'T-Spot', group = grpVisuals, inline = 'tspot')
-tSpotBullColor = input.color(color.new(#81C784, 80), 'Bullish', group = grpVisuals, inline = 'tspot')
-tSpotBearColor = input.color(color.new(color.gray, 80), 'Bearish', group = grpVisuals, inline = 'tspot')
+tSpotBullColor = input.color(color.new(#787b86, 90), 'Bullish', group = grpVisuals, inline = 'tspot')
+tSpotBearColor = input.color(color.new(#787b86, 90), 'Bearish', group = grpVisuals, inline = 'tspot')
 
 grpProt       = 'Protected Swings'
-showIcCisd    = input.bool(true, 'Enable Protected Swings?', group = grpProt, inline = 'proton', tooltip = "Continuations after the CISD. A swing is protected when it traded into a fair value gap in the setup's direction or took an earlier untaken swing, and price then closes through the opposite candles that led into it: a dot on the swing, plus a line (Style / Width) at the level that was closed through. A dot turns grey once price trades back through the swing and stays until the setup leaves the history.")
+showIcCisd    = input.bool(true, 'Enable Protected Swings?', group = grpProt, inline = 'proton', tooltip = "Continuations after the CISD. A swing is protected when it traded into a fair value gap in the setup's direction or took an earlier untaken swing, and price then closes through the opposite candles that led into it: a dot on the swing, plus a line (Style / Width) at the level that was closed through. A dot turns gray once price trades back through the swing and stays until the setup leaves the history.")
 protStyle     = input.string('Solid', 'Style', options = ['Solid', 'Dashed', 'Dotted'], group = grpProt, inline = 'protsty', active = showIcCisd)
 protWidth     = input.int(1, 'Width', minval = 1, group = grpProt, inline = 'protsty', active = showIcCisd)
-protBullColor = input.color(#2962FF, 'Bullish', group = grpProt, inline = 'protclr', active = showIcCisd)
-protBearColor = input.color(#F23645, 'Bearish', group = grpProt, inline = 'protclr', active = showIcCisd)
+protBullColor = input.color(#2962ff, 'Bullish', group = grpProt, inline = 'protclr', active = showIcCisd)
+protBearColor = input.color(#f23645, 'Bearish', group = grpProt, inline = 'protclr', active = showIcCisd)
 
 grpSmt        = 'Asset Correlation'
 show_smt      = input.bool(true, 'Enable SMT?', group = grpSmt, inline = 'smt', tooltip = 'SMT = this symbol and a correlated one disagree at the same level: one takes the previous high (or low), the other does not. Its alert is SMT Divergence? in Alerts Settings.')
@@ -126,11 +127,11 @@ pair1In       = input.symbol('CME_MINI:ES1!', '1.', group = grpSmt, inline = 'p1
 pair1Inv      = input.bool(false, 'Inverse?', group = grpSmt, inline = 'p1', active = pairMode == 'Custom', tooltip = 'Inverse: the pair moves opposite to this symbol (e.g. DXY against EURUSD). Its highs are compared with your lows.')
 pair2In       = input.symbol('CME_MINI:NQ1!', '2.', group = grpSmt, inline = 'p2', active = pairMode == 'Custom' and useSecondPair)
 pair2Inv      = input.bool(false, 'Inverse?', group = grpSmt, inline = 'p2', active = pairMode == 'Custom' and useSecondPair)
-smt_color     = input.color(#FF9800, '', group = grpSmt, inline = 'smtln')
+smt_color     = input.color(color.new(#000000, 100), '', group = grpSmt, inline = 'smtln')
 smtStyle      = input.string('Solid', 'SMT Line', options = ['Solid', 'Dashed', 'Dotted'], group = grpSmt, inline = 'smtln')
-smtWidth      = input.int(1, 'Width', minval = 1, group = grpSmt, inline = 'smtln')
+smtWidth      = input.int(1, 'Width', minval = 1, group = grpSmt, inline = 'smtln', tooltip = 'Color left empty (transparent): bullish SMT in the Bullish CISD color, bearish in the Bearish CISD color. Pick a color to draw every SMT in that one color.')
 showPsp       = input.bool(true, 'Enable PSP?', group = grpSmt, inline = 'psp')
-pspMode       = input.string('Both', '', options = ['Candle 1', 'Candle 2', 'Both'], group = grpSmt, inline = 'psp', active = showPsp, tooltip = 'PSP (Precision Swing Point): the C1 or C2 candle closes a different color than the same HTF candle on a correlated pair (one bullish, one bearish). The C2 label then reads C2+PSP. Dojis are ignored.')
+pspMode       = input.string('Both', '', options = ['Candle 1', 'Candle 2', 'Both'], group = grpSmt, inline = 'psp', active = showPsp, tooltip = 'PSP (Precision Swing Point): the C1 or C2 candle closes a different color than the same HTF candle on a correlated pair (one bullish, one bearish). The model label then reads C2+PSP or C3+PSP. Dojis are ignored.')
 
 grpStdDev   = 'Standard Deviation Projections'
 showStdDev  = input.bool(false, 'Enable Projections?', group = grpStdDev)
@@ -144,12 +145,12 @@ stdWidth    = input.int(1, 'Width', minval = 1, group = grpStdDev, inline = 'sdc
 
 grpFl   = 'Formation Liquidity'
 showFl  = input.bool(true, 'Enable Formation Liquidity?', group = grpFl, tooltip = 'Targets of the model: the high (bullish) or low (bearish) of the C1 candle and of the candle before it. A line starts where that high / low printed and stops at the bar that takes it.')
-flColor = input.color(color.new(#000000, 0), '', group = grpFl, inline = 'fl', active = showFl)
+flColor = input.color(#9598a1, '', group = grpFl, inline = 'fl', active = showFl)
 flStyle = input.string('Dotted', '', options = ['Solid', 'Dashed', 'Dotted'], group = grpFl, inline = 'fl', active = showFl)
 flWidth = input.int(1, 'Width', minval = 1, group = grpFl, inline = 'fl', active = showFl)
 
 grpTimeF      = 'Time Filter'
-useTimeFilter = input.bool(false, 'Enable Time Filter?', group = grpTimeF, tooltip = 'New setups only when C3 opens inside one of the checked windows. With no window checked, nothing is filtered.')
+useTimeFilter = input.bool(false, 'Enable Time Filter?', group = grpTimeF, tooltip = 'New setups only when the model is found inside one of the checked windows (when C3 opens, or C4 for a C3 model). With no window checked, nothing is filtered.')
 tfApplyBelow  = input.timeframe('60', 'Apply below', group = grpTimeF, active = useTimeFilter, tooltip = 'Only charts below this timeframe are filtered.')
 tfUseTz       = input.bool(false, 'Custom Timezone? UTC', group = grpTimeF, inline = 'tftz', active = useTimeFilter)
 tfTzHour      = input.int(1, '', minval = -12, maxval = 14, group = grpTimeF, inline = 'tftz', active = useTimeFilter and tfUseTz)
@@ -167,14 +168,14 @@ grpAdr       = 'ADR / CDR'
 adrShow      = input.bool(true, 'Show in Info Table', group = grpAdr, inline = 'adrtbl')
 adrLen       = input.int(14, 'Length', minval = 1, maxval = 100, group = grpAdr, inline = 'adrtbl', tooltip = 'ADR = average high-low of this many completed days (today excluded). CDR = today\'s high-low so far, with its share of ADR. A day starts 18:00 New York (forex 17:00), on every broker. Forex in pips, the rest in price points.')
 adrLinesShow = input.bool(false, 'ADR+ / ADR- Lines', group = grpAdr, inline = 'adrln', tooltip = 'ADR+ = today\'s low + ADR, ADR- = today\'s high - ADR: how far the day can still reach if it makes a full average range. Drawn for the current day only.')
-adrLineColor = input.color(color.new(color.gray, 0), '', group = grpAdr, inline = 'adrln')
+adrLineColor = input.color(#b2b5be, '', group = grpAdr, inline = 'adrln')
 adrLineStyle = input.string('Dashed', '', options = ['Solid', 'Dashed', 'Dotted'], group = grpAdr, inline = 'adrln')
 
 grpInfo        = 'Info Table'
 tbl_show       = input.bool(true, 'Show Info?', group = grpInfo, inline = 'info')
-tbl_style      = input.string('Table', '', options = ['Table', 'Text'], group = grpInfo, inline = 'info')
+tbl_style      = input.string('Text', '', options = ['Table', 'Text'], group = grpInfo, inline = 'info')
 tbl_text_size  = input.string('Tiny', '', options = ['Tiny', 'Small', 'Normal', 'Large'], group = grpInfo, inline = 'info')
-tbl_border     = input.bool(false, 'Border?', group = grpInfo, inline = 'info', tooltip = 'Table: with a background. Text: text only.\n\nRows: symbol (timeframe), model, time to close, bias, time filter (only when it is on), SMT pairs, ADR + CDR %, date.')
+tbl_border     = input.bool(false, 'Border?', group = grpInfo, inline = 'info', tooltip = 'Table: with a background. Text: text only. Border?: a frame around it.\n\nRows: symbol (timeframe), model, time to close, bias, time filter (only when it is on), SMT pairs, ADR + CDR %, date.')
 tbl_pos_vert   = input.string('Bottom', 'Table Location', options = ['Top', 'Middle', 'Bottom'], group = grpInfo, inline = 'tblpos')
 tbl_pos_horiz  = input.string('Right', '', options = ['Left', 'Center', 'Right'], group = grpInfo, inline = 'tblpos')
 tbl_asset      = input.bool(true, 'Asset', group = grpInfo, inline = 'r1')
@@ -185,19 +186,35 @@ tbl_bias       = input.bool(true, 'Bias', group = grpInfo, inline = 'r3')
 tbl_tfilter    = input.bool(true, 'Time Filter', group = grpInfo, inline = 'r3')
 tbl_smt        = input.bool(true, 'SMT Ticker(s)', group = grpInfo, inline = 'r4')
 tbl_date       = input.bool(false, 'Date', group = grpInfo, inline = 'r4')
-tbl_bg_color   = input.color(color.new(#ffffff, 0), 'Colors', group = grpInfo, inline = 'tblclr')
-tbl_text_color = input.color(color.new(#131722, 0), '', group = grpInfo, inline = 'tblclr')
+tbl_bg_colorIn = input.color(#ffffff, 'Colors', group = grpInfo, inline = 'tblclr')
+tbl_text_color = input.color(#787b86, '', group = grpInfo, inline = 'tblclr')
 
 //#endregion
 
 //#region [CONSTANTS AND STATE]
 
 noColor           = color.new(#000000, 100)
+
+// Dark chart background: colors still at their default (light-theme) value switch to a light equivalent
+isDarkChart = color.r(chart.bg_color) + color.g(chart.bg_color) + color.b(chart.bg_color) < 382
+themed(color c, color lightDef, color darkAlt) =>
+    isDarkChart and c == lightDef ? darkAlt : c
+bearBody      = themed(bearBodyIn, #131722, #5d606b)
+borderBull    = themed(borderBullIn, #2a2e39, #b2b5be)
+borderBear    = themed(borderBearIn, #2a2e39, #b2b5be)
+wickBull      = themed(wickBullIn, #2a2e39, #b2b5be)
+wickBear      = themed(wickBearIn, #2a2e39, #b2b5be)
+sweepColor    = themed(sweepColorIn, #000000, #b2b5be)
+tbl_bg_color  = themed(tbl_bg_colorIn, #ffffff, #1e222d)
+htfNameColor  = isDarkChart ? #d1d4dc : htfNameColorL
+c2c3c4Color   = isDarkChart ? #d1d4dc : c2c3c4ColorL
+tblHeadColor  = tbl_text_color == #787b86 ? (isDarkChart ? #d1d4dc : #2a2e39) : tbl_text_color
+takenColor    = #b2b5be   // protected swing dot after it is taken
 icBackfillMaxBars = 300
 icCisdDotSize     = 'Small'
 
 // HTF candle size: half body width and the distance between candle centers, in bars
-htfHalf       = htfSize == 'Large' ? 3 : htfSize == 'Normal' ? 2 : 1
+htfHalf       = htfSize == 'Large' ? 4 : htfSize == 'Normal' ? 3 : 2
 candleSpacing = htfHalf * 2 + 1
 
 // where things are drawn
@@ -587,7 +604,7 @@ formatHms(int ms) =>
     hh = int((totalSec % 86400) / 3600)
     mm = int((totalSec % 3600) / 60)
     ss = int(totalSec % 60)
-    (dd > 0 ? str.tostring(dd) + 'D ' : '') + pad2(hh) + ':' + pad2(mm) + ':' + pad2(ss)
+    (dd > 0 ? str.tostring(dd) + 'd ' : '') + pad2(hh) + ':' + pad2(mm) + ':' + pad2(ss)
 
 biggerSize(string s) =>
     switch s
@@ -662,16 +679,20 @@ ltfCode() =>
 c2TagText(bool psp) =>
     'C2' + (psp ? '+PSP' : '')
 
+// SMT color: by direction (CISD colors) unless one color is picked
+smtColorFor(bool isHigh) =>
+    color.t(smt_color) == 100 ? (isHigh ? cisdBearColor : cisdBullColor) : smt_color
+
 // [HTF SMT] Creates / updates / removes one divergence segment.
-smtHtfSeg(line ln, bool active, int x1, float y1, int x2, float y2) =>
+smtHtfSeg(line ln, bool active, int x1, float y1, int x2, float y2, bool isHigh) =>
     line l = ln
     if active
         if na(l)
-            l := line.new(x1, y1, x2, y2, xloc = xloc.bar_index, color = smt_color, style = lineStyleFromStr(smtStyle), width = smtWidth)
+            l := line.new(x1, y1, x2, y2, xloc = xloc.bar_index, color = smtColorFor(isHigh), style = lineStyleFromStr(smtStyle), width = smtWidth)
         else
             line.set_xy1(l, x1, y1)
             line.set_xy2(l, x2, y2)
-            line.set_color(l, smt_color)
+            line.set_color(l, smtColorFor(isHigh))
             line.set_style(l, lineStyleFromStr(smtStyle))
             line.set_width(l, smtWidth)
     else if not na(l)
@@ -742,9 +763,9 @@ method update(HtfCandle c, float curH, float curL, float curC, int curBar) =>
     c
 
 
-// Time label text under an HTF candle: month, day name (daily and above) or the open time
+// Time label text under an HTF candle: month, week's date (NOV 2), day name (daily) or the open time
 htfStampText(int t, string tf) =>
-    str.endswith(tf, 'M') ? str.upper(str.format_time(t, 'MMM', stampTz)) : timeframe.in_seconds(tf) >= 86400 ? str.upper(str.format_time(t + 12 * 60 * 60 * 1000, 'EEE', stampTz)) : str.format_time(t, timeFormat == '12h' ? 'h:mma' : 'HH:mm', stampTz)
+    tf == '12M' ? str.format_time(t + 12 * 60 * 60 * 1000, 'yyyy', stampTz) : str.endswith(tf, 'M') ? str.upper(str.format_time(t + 12 * 60 * 60 * 1000, 'MMM', stampTz)) : str.endswith(tf, 'W') ? str.upper(str.format_time(t + 12 * 60 * 60 * 1000, 'MMM d', stampTz)) : timeframe.in_seconds(tf) >= 86400 ?str.upper(str.format_time(t + 12 * 60 * 60 * 1000, 'EEE', stampTz)) : str.format_time(t, timeFormat == '12h' ? 'h:mma' : 'HH:mm', stampTz)
 
 // Draws one HTF candle centered on bar midX
 method draw(HtfCandle c, int midX, string tf) =>
@@ -924,7 +945,7 @@ icMarkTaken(C2Setup s, int m) =>
                     if sweep
                         ic.taken := true
                         if not na(ic.dotLbl)
-                            label.set_textcolor(ic.dotLbl, color.gray)
+                            label.set_textcolor(ic.dotLbl, takenColor)
     s
 
 // The C4 label and the protected swing dots: when a dot sits where the C4 label prints (a few bars, about
@@ -969,7 +990,7 @@ icMarkTakenAll(int htfOpenT) =>
                 if sweep
                     ic.taken := true
                     if not na(ic.dotLbl)
-                        label.set_textcolor(ic.dotLbl, color.gray)
+                        label.set_textcolor(ic.dotLbl, takenColor)
             if ic.taken or ic.frozen
                 icDots.remove(i)
 
@@ -1439,6 +1460,7 @@ xSelTf(simple string s) =>
         '15m' => '15'
         '30m' => '30'
         '1H'  => '60'
+        '90m' => '90'
         '4H'  => '240'
         '6H'  => '360'
         '7H'  => '420'
@@ -1567,9 +1589,9 @@ smtDrawOn(C2Setup s, int x1, float y1, int x2, float y2, bool isHigh, string txt
     if na(s.smtLns)
         s.smtLns  := array.new<line>()
         s.smtLbls := array.new<label>()
-    s.smtLns.push(line.new(x1, y1, x2, y2, xloc = xloc.bar_index, color = smt_color, style = lineStyleFromStr(smtStyle), width = smtWidth))
+    s.smtLns.push(line.new(x1, y1, x2, y2, xloc = xloc.bar_index, color = smtColorFor(isHigh), style = lineStyleFromStr(smtStyle), width = smtWidth))
     if txt != ''
-        s.smtLbls.push(label.new(int(math.round((x1 + x2) / 2.0)), (y1 + y2) / 2, txt, xloc = xloc.bar_index, yloc = yloc.price, style = isHigh ? label.style_label_down : label.style_label_up, color = na, textcolor = smt_color, size = textSize(smtLblSize), text_font_family = font.family_default))
+        s.smtLbls.push(label.new(int(math.round((x1 + x2) / 2.0)), (y1 + y2) / 2, txt, xloc = xloc.bar_index, yloc = yloc.price, style = isHigh ? label.style_label_down : label.style_label_up, color = na, textcolor = smtColorFor(isHigh), size = textSize(smtLblSize), text_font_family = font.family_default))
 
 modelText() =>
     tfLabel(ltfCode()) + '-' + tfLabel(autoTf)
@@ -1593,8 +1615,10 @@ method reveal(C2Setup s) =>
             s.c3Box  := bx
             s.c3Dash := dash
             if s.phase == 2
-                box.set_right(s.c3Box, s.c4Start)
-                line.set_x2(s.c3Dash, s.c4Start)
+                if not na(s.c3Box)
+                    box.set_right(s.c3Box, s.c4Start)
+                if not na(s.c3Dash)
+                    line.set_x2(s.c3Dash, s.c4Start)
         if s.phase == 2 and showC4 and not na(s.c4Start)
             [bx4, dash4, lbl4] = drawPhaseAt(s.isBull, 4, s.c4Start, s.c4Top, s.c4Bottom, s.c4Mid, not s.c3Model)
             s.c4Box  := bx4
@@ -1604,10 +1628,11 @@ method reveal(C2Setup s) =>
             if s.c4Invalid
                 box.delete(s.c4Box)
                 s.c4Box := na
-                line.set_color(s.c4Dash, color.red)
+                if not na(s.c4Dash)
+                    line.set_color(s.c4Dash, cisdBearColor)
                 if not na(s.c4Lbl)
                     label.set_text(s.c4Lbl, 'XC4')
-                    label.set_textcolor(s.c4Lbl, color.red)
+                    label.set_textcolor(s.c4Lbl, cisdBearColor)
         registerRecord(s)
         if showAlerts and modelAlerts
             alert((s.isBull ? 'Bullish ' : 'Bearish ') + (s.c3Model ? 'Candle 3' : 'Candle 2') + ' (' + s.tag + ') on ' + syminfo.ticker + ', ' + modelText(), alert.freq_once_per_bar)
@@ -1745,7 +1770,7 @@ method extendAndCheck(C2Setup s) =>
         if c2Breach
             if not na(s.c2Lbl)
                 label.set_text(s.c2Lbl, 'X' + s.tag)
-                label.set_textcolor(s.c2Lbl, s.phase == 2 ? color.orange : color.red)
+                label.set_textcolor(s.c2Lbl, s.phase == 2 ? color.orange : cisdBearColor)
             box.delete(s.c3Box)
             s.c3Box := na
             line.delete(s.c3Dash)
@@ -1785,9 +1810,9 @@ method checkC4Invalid(C2Setup s) =>
             s.c4Invalid := true
             if not na(s.c4Lbl)
                 label.set_text(s.c4Lbl, 'XC4')
-                label.set_textcolor(s.c4Lbl, color.red)
+                label.set_textcolor(s.c4Lbl, cisdBearColor)
             if not na(s.c4Dash)
-                line.set_color(s.c4Dash, color.red)
+                line.set_color(s.c4Dash, cisdBearColor)
                 line.set_x2(s.c4Dash, bar_index)
             box.delete(s.c4Box)
             s.c4Box := na
@@ -1965,7 +1990,7 @@ if showPsp and periodChanged and htfCandles.size() > 2
     HtfCandle own1 = htfCandles.get(2)
     pspHit := pairPsp(pair1, own1, own2) or pairPsp(pair2, own1, own2)
 
-bool setupOk = calcOn and inTimeFilter and not hideSetups
+bool setupOk = calcOn and validTf and inTimeFilter and not hideSetups
 bool buyOk   = allowBuy and setupOk and biasNow != 'Bearish'
 bool sellOk  = allowSell and setupOk and biasNow != 'Bullish'
 
@@ -2059,8 +2084,8 @@ if not na(sellSetup) and sellSetup.justConfirmed
 // instead of "Any alert() function call" to set the CISD alerts up on their own.
 alertcondition(bullEarlyCisdFiredThisBar and showAlerts and earlyCisdAlerts and not hideSetups, title = 'Bullish Early CISD', message = 'Bullish Early CISD on {{ticker}} ({{interval}})')
 alertcondition(bearEarlyCisdFiredThisBar and showAlerts and earlyCisdAlerts and not hideSetups, title = 'Bearish Early CISD', message = 'Bearish Early CISD on {{ticker}} ({{interval}})')
-alertcondition(cisdBullFiredThisBar and showAlerts and modelAlerts, title = 'Bullish CISD Confirmed', message = 'Bullish CISD confirmed on {{ticker}} ({{interval}})')
-alertcondition(cisdBearFiredThisBar and showAlerts and modelAlerts, title = 'Bearish CISD Confirmed', message = 'Bearish CISD confirmed on {{ticker}} ({{interval}})')
+alertcondition(cisdBullFiredThisBar and showAlerts and modelAlerts and not hideSetups, title = 'Bullish CISD Confirmed', message = 'Bullish CISD Confirmed on {{ticker}} ({{interval}})')
+alertcondition(cisdBearFiredThisBar and showAlerts and modelAlerts and not hideSetups, title = 'Bearish CISD Confirmed', message = 'Bearish CISD Confirmed on {{ticker}} ({{interval}})')
 
 if showVlines and periodChanged and calcOn
     vLines.unshift(line.new(bar_index, low - ta.tr, bar_index, high + ta.tr, xloc.bar_index, extend.both, lineColor, lineStyleFromStr(lineStyle), lineWidth))
@@ -2175,7 +2200,7 @@ xBox(int left, float top, int right, float bot, color border, color bg) =>
         xBoxes.push(box.new(left, top, right, bot, border_color = border, border_width = 1, bgcolor = bg))
     xUsed.set(0, i + 1)
 
-xLabel(int x, float y, string txt, string st, color tc) =>
+xLabel(int x, float y, string txt, string st, color tc, bool bold = false, bool big = false) =>
     int i = xUsed.get(2)
     if i < xLabels.size()
         label b = xLabels.get(i)
@@ -2183,23 +2208,31 @@ xLabel(int x, float y, string txt, string st, color tc) =>
         label.set_text(b, txt)
         label.set_style(b, st)
         label.set_textcolor(b, tc)
-        label.set_size(b, smallerSize(labelSize))
+        label.set_size(b, big ? textSize(labelSize) : smallerSize(labelSize))
+        label.set_text_formatting(b, bold ? text.format_bold : text.format_none)
     else
-        xLabels.push(label.new(x, y, txt, xloc = xloc.bar_index, yloc = yloc.price, style = st, color = na, textcolor = tc, size = smallerSize(labelSize), text_font_family = font.family_default))
+        xLabels.push(label.new(x, y, txt, xloc = xloc.bar_index, yloc = yloc.price, style = st, color = na, textcolor = tc, size = big ? textSize(labelSize) : smallerSize(labelSize), text_font_family = font.family_default, text_formatting = bold ? text.format_bold : text.format_none))
     xUsed.set(2, i + 1)
 
-// Block title: the timeframe and, under it, the time left in brackets ('1H' / '(12:40)'), over the block's highest
-// high, under its lowest low (mirrored: time first), or both (a line lower when the time labels sit below)
+// Block title: the timeframe (bold, dark) and, under it, the time left in brackets (gray), over the block's highest
+// high, under its lowest low (mirrored: time first), or both (a line lower when the time labels sit below).
+// Two labels so each line keeps its own color; blank lines stack them. One size above the time labels.
 xTitle(int x, float top, float bot, string tf) =>
     string nm = showHtfName ? tfLabel(tf) : ''
     string tm = showHtfTimer ? '(' + formatRemaining(htfCloseTime(tf) - (barstate.isrealtime ? timenow : time_close)) + ')' : ''
-    string up = nm + (nm != '' and tm != '' ? '\n' : '') + tm
-    string dn = tm + (nm != '' and tm != '' ? '\n' : '') + nm
-    if up != ''
+    bool   both = nm != '' and tm != ''
+    if nm != '' or tm != ''
         if htfNamePos != 'Bottom'
-            xLabel(x, top, up, label.style_label_down, htfInfoColor)
+            if nm != ''
+                xLabel(x, top, both ? nm + '\n ' : nm, label.style_label_down, htfNameColor, true, true)
+            if tm != ''
+                xLabel(x, top, tm, label.style_label_down, htfInfoColor, false, true)
         if htfNamePos != 'Top'
-            xLabel(x, bot, showHtfStamps ? ' \n' + dn : dn, label.style_label_up, htfInfoColor)
+            string pre = showHtfStamps ? ' \n' : ''
+            if tm != ''
+                xLabel(x, bot, pre + tm, label.style_label_up, htfInfoColor, false, true)
+            if nm != ''
+                xLabel(x, bot, pre + (both ? ' \n' : '') + nm, label.style_label_up, htfNameColor, true, true)
 
 // A pair's candle with the same open time (else the same position), flipped for an inverse pair
 xPair(XData p, bool inv, int i, int t) =>
@@ -2323,9 +2356,9 @@ xBlock(XData d, XData p, XData q, bool pInv, bool qInv, int left, string tf) =>
                     if not na(newerL) and newerL < cl
                         bull := false
                     if bear
-                        xLine(mids.get(i + 1), oh, mids.get(i), ch, smt_color, smtStyle, smtWidth)
+                        xLine(mids.get(i + 1), oh, mids.get(i), ch, smtColorFor(true), smtStyle, smtWidth)
                     if bull
-                        xLine(mids.get(i + 1), ol, mids.get(i), cl, smt_color, smtStyle, smtWidth)
+                        xLine(mids.get(i + 1), ol, mids.get(i), cl, smtColorFor(false), smtStyle, smtWidth)
                 newerH := na(newerH) ? ch : math.max(newerH, ch)
                 newerL := na(newerL) ? cl : math.min(newerL, cl)
 
@@ -2403,8 +2436,8 @@ if (barstate.islast or barstate.isrealtime) and validTf and htfCandles.size() > 
         int   x1 = na(prev) ? cur.midX : prev.midX
         float yH = na(prev) ? cur.h : prev.h
         float yL = na(prev) ? cur.l : prev.l
-        cur.smtHLine := smtHtfSeg(cur.smtHLine, bear1 or bear2, x1, yH, cur.midX, cur.h)
-        cur.smtLLine := smtHtfSeg(cur.smtLLine, bull1 or bull2, x1, yL, cur.midX, cur.l)
+        cur.smtHLine := smtHtfSeg(cur.smtHLine, bear1 or bear2, x1, yH, cur.midX, cur.h, true)
+        cur.smtLLine := smtHtfSeg(cur.smtLLine, bull1 or bull2, x1, yL, cur.midX, cur.l, false)
 
     // [PSP] on the C1 / C2 HTF candles of setups: the candle closes a different color than a pair's same candle
     for i = 0 to n - 1
@@ -2453,10 +2486,11 @@ if (barstate.islast or barstate.isrealtime) and validTf and htfCandles.size() > 
         mBot := na(mBot) ? htfCandles.get(i).l : math.min(mBot, htfCandles.get(i).l)
     xTitle(int(math.round((blockLeft + blockRight) / 2.0)), mTop, mBot, autoTf)
     if x1On or x2On
+        // a block that would end past the 500-bar drawing limit right of the last bar is left out
         int xLeft = blockRight + candleSpacing + 3
-        if x1On
+        if x1On and xLeft + nX * candleSpacing + 12 <= bar_index + 495
             xLeft := xBlock(x1D, x1P, x1Q, pair1InvOn, pair2InvOn, xLeft, x1Tf) + candleSpacing + 3
-        if x2On
+        if x2On and xLeft + nX * candleSpacing + 12 <= bar_index + 495
             xBlock(x2D, x2P, x2Q, pair1InvOn, pair2InvOn, xLeft, x2Tf)
 
 // [EXTRA HTF] pooled drawings this redraw did not use
@@ -2495,7 +2529,7 @@ if barstate.islast
         head := head == '' ? tfLabel(curTfCode()) : head + ' (' + tfLabel(curTfCode()) + ')'
     if head != ''
         rows.push(head)
-        clrs.push(tbl_text_color)
+        clrs.push(tblHeadColor)
         szs.push(tbl_sz)
     if tbl_fractal
         rows.push(validTf ? tfLabel(ltfCode()) + '-' + tfLabel(autoTf) + ' Model' : 'No Model')
@@ -2503,13 +2537,13 @@ if barstate.islast
         szs.push(tbl_sz)
     if tbl_ttc and validTf
         rows.push(formatHms(htfCloseTime(autoTf) - (barstate.isrealtime ? timenow : time_close)))
-        clrs.push(tbl_text_color)
+        clrs.push(tblHeadColor)
         szs.push(biggerSize(tbl_text_size))
     if tbl_bias
         bool   bullish = biasNow == 'Bullish'
         bool   bearish = biasNow == 'Bearish'
         rows.push('Bias: ' + biasNow + (abSteps > 0 ? ' (AB' + str.tostring(abSteps) + ' ' + tfLabel(abLtf) + '-' + tfLabel(abHtf) + ')' : ''))
-        clrs.push(bullish ? color.green : bearish ? color.red : tbl_text_color)
+        clrs.push(bullish ? cisdBullColor : bearish ? cisdBearColor : tbl_text_color)
         szs.push(tbl_sz)
     if tbl_tfilter and useTimeFilter
         rows.push('Filter: ' + (not timeFilterActive ? 'not used' : inTimeFilter ? 'open' : 'closed'))
@@ -2522,7 +2556,7 @@ if barstate.islast
         if pair2Name != ''
             smtTxt := (smtTxt == '' ? '' : smtTxt + ', ') + statusSym(pair2Name) + (pair2Seen ? '' : ' (no data)')
         bool smtOff = not show_smt and not showPsp
-        rows.push('SMT(' + (smtCustom ? 'Custom' : 'Auto') + '): ' + (smtOff ? 'Off' : smtTxt == '' ? 'n/a' : smtTxt))
+        rows.push('SMT (' + (smtCustom ? 'Custom' : 'Auto') + '): ' + (smtOff ? 'Off' : smtTxt == '' ? 'n/a' : smtTxt))
         clrs.push(smtOff or smtTxt == '' ? tbl_dim_color : tbl_text_color)
         szs.push(tbl_sz)
     // ADR 655.3 pts · 62%  (the % is today's range, CDR, as a share of ADR)
@@ -2541,7 +2575,7 @@ if barstate.islast
     if tbl_show and rows.size() > 0
         infoTbl := table.new(tablePosition(tbl_pos_vert, tbl_pos_horiz), 1, rows.size(), bgcolor = tblBg, border_color = noColor, border_width = 0, frame_color = tblFrame, frame_width = tbl_border ? 1 : 0)
         for r = 0 to rows.size() - 1
-            table.cell(infoTbl, 0, r, rows.get(r), text_color = clrs.get(r), bgcolor = tblBg, text_size = szs.get(r), text_halign = text.align_center, text_font_family = font.family_monospace)
+            table.cell(infoTbl, 0, r, rows.get(r), text_color = clrs.get(r), bgcolor = tblBg, text_size = szs.get(r), text_halign = text.align_center, text_font_family = font.family_default, text_formatting = r == 0 and head != '' ? text.format_bold : text.format_none)
 
 var line  adrUpLn  = na
 var line  adrDnLn  = na
