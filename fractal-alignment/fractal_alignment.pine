@@ -127,9 +127,10 @@ pair1In       = input.symbol('CME_MINI:ES1!', '1.', group = grpSmt, inline = 'p1
 pair1Inv      = input.bool(false, 'Inverse?', group = grpSmt, inline = 'p1', active = pairMode == 'Custom', tooltip = 'Inverse: the pair moves opposite to this symbol (e.g. DXY against EURUSD). Its highs are compared with your lows.')
 pair2In       = input.symbol('CME_MINI:NQ1!', '2.', group = grpSmt, inline = 'p2', active = pairMode == 'Custom' and useSecondPair)
 pair2Inv      = input.bool(false, 'Inverse?', group = grpSmt, inline = 'p2', active = pairMode == 'Custom' and useSecondPair)
-smt_color     = input.color(color.new(#000000, 100), '', group = grpSmt, inline = 'smtln')
+smtBullColor  = input.color(#2962ff, '', group = grpSmt, inline = 'smtln')
+smtBearColor  = input.color(#f23645, '', group = grpSmt, inline = 'smtln')
 smtStyle      = input.string('Solid', 'SMT Line', options = ['Solid', 'Dashed', 'Dotted'], group = grpSmt, inline = 'smtln')
-smtWidth      = input.int(1, 'Width', minval = 1, group = grpSmt, inline = 'smtln', tooltip = 'Color left empty (transparent): bullish SMT in the Bullish CISD color, bearish in the Bearish CISD color. Pick a color to draw every SMT in that one color.')
+smtWidth      = input.int(1, 'Width', minval = 1, group = grpSmt, inline = 'smtln', tooltip = 'Left color: bullish SMT (at lows). Right color: bearish SMT (at highs). Used for the lines and the pair names, on the chart and on the HTF candles.')
 showPsp       = input.bool(true, 'Enable PSP?', group = grpSmt, inline = 'psp')
 pspMode       = input.string('Both', '', options = ['Candle 1', 'Candle 2', 'Both'], group = grpSmt, inline = 'psp', active = showPsp, tooltip = 'PSP (Precision Swing Point): the C1 or C2 candle closes a different color than the same HTF candle on a correlated pair (one bullish, one bearish). The model label then reads C2+PSP or C3+PSP. Dojis are ignored.')
 
@@ -679,9 +680,9 @@ ltfCode() =>
 c2TagText(bool psp) =>
     'C2' + (psp ? '+PSP' : '')
 
-// SMT color: by direction (CISD colors) unless one color is picked
+// SMT color by direction: bearish at highs, bullish at lows
 smtColorFor(bool isHigh) =>
-    color.t(smt_color) == 100 ? (isHigh ? cisdBearColor : cisdBullColor) : smt_color
+    isHigh ? smtBearColor : smtBullColor
 
 // [HTF SMT] Creates / updates / removes one divergence segment.
 smtHtfSeg(line ln, bool active, int x1, float y1, int x2, float y2, bool isHigh) =>
