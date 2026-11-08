@@ -2108,6 +2108,9 @@ max_bars_back(high, 1500)
 max_bars_back(low, 1500)
 max_bars_back(open, 1500)
 max_bars_back(close, 1500)
+// Drawings anchored far back (ADR lines from the day's first bar: ~1400 bars on 1m) need the bar's
+// time: without this, every new realtime bar asks one bar further than the buffer chosen on history.
+max_bars_back(time, 5000)
 
 flLine(float px, int b, bool isBull, int swingBar) =>
     if not na(px) and not na(b) and b < bar_index
