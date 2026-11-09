@@ -13,7 +13,7 @@ smtAlerts       = input.bool(true, 'SMT Divergence?', group = grpAlerts, tooltip
 protAlerts      = input.bool(true, 'Protected Swings?', group = grpAlerts, tooltip = 'A new protected swing (continuation dot) after the reversal CISD.')
 
 grpWarn  = 'Warnings and Error Messages'
-showWarn = input.bool(false, 'Show?', group = grpWarn, tooltip = 'Shows a short message on the chart when something cannot work: the chart timeframe does not fit the selected fractal, or a correlated pair has no data.')
+showWarn = input.bool(true, 'Show?', group = grpWarn, tooltip = 'Shows a short message on the chart when something cannot work: the chart timeframe does not fit the selected fractal, or a correlated pair has no data.')
 
 grpModel    = 'General Settings'
 showHistory = input.int(1, 'History', minval = 0, maxval = 40, group = grpModel, tooltip = 'How many earlier setups stay drawn next to the latest one. 0 = only the latest.')
@@ -72,7 +72,7 @@ tzHour        = input.int(1, '', minval = -12, maxval = 14, group = grpTime, inl
 tzMin         = input.int(0, ':', minval = 0, maxval = 59, group = grpTime, inline = 'tz', active = useCustomTz, tooltip = 'Off: New York time. On: this UTC offset, e.g. 3 : 0 for Turkey.')
 showHtfName   = input.bool(true, 'HTF Label', group = grpTime, inline = 'hname')
 showHtfTimer  = input.bool(true, 'Remaining Time', group = grpTime, inline = 'hname')
-htfNamePos    = input.string('Both', '', options = ['Both', 'Top', 'Bottom'], group = grpTime, inline = 'hname', tooltip = 'Over and / or under each block of HTF candles: its timeframe and the time left until the forming candle closes, e.g. 1H (12:40).')
+htfNamePos    = input.string('Top', '', options = ['Both', 'Top', 'Bottom'], group = grpTime, inline = 'hname', tooltip = 'Over and / or under each block of HTF candles: its timeframe and the time left until the forming candle closes, e.g. 1H (12:40).')
 htfInfoColor  = #787b86   // HTF time labels and time left (mid gray)
 htfNameColorL = #2a2e39   // HTF block timeframe name (dark, bold)
 
@@ -698,6 +698,24 @@ ltfCode() =>
         'Custom' => customLTF
         =>          curTfCode()
 
+// Model HTF of the selected fractal
+autoTf = switch modelType
+    '1s-1m'  => '1'
+    '15s-5m' => '5'
+    '1m-15m' => '15'
+    '3m-30m' => '30'
+    '5m-1H'  => '60'
+    '15m-4H' => '240'
+    '1H-1D'  => '1D'
+    '4H-1W'  => '1W'
+    '1D-1M'  => '1M'
+    'Custom' => customHTF
+    =>          autoHTF() == '' ? '1M' : autoHTF()
+
+// '5m-1H': the fractal as text; every alert ends with it
+modelText() =>
+    tfLabel(ltfCode()) + '-' + tfLabel(autoTf)
+
 // The label only carries PSP (C2 / C2+PSP); SMT shows as its own line and pair name
 c2TagText(bool psp) =>
     'C2' + (psp ? '+PSP' : '')
@@ -858,7 +876,7 @@ drawEarlyCisd(bool isBull, float level, int idx, int confirmBar) =>
         ln = line.new(idx, level, confirmBar + 1, level, color = clr, style = lineStyleFromStr(earlyCisdStyle), width = 1)
         target.push(EarlyCisdRecord.new(ln, confirmBar))
     if showAlerts and earlyCisdAlerts and calcOn and not hideSetups
-        alert((isBull ? 'Bullish' : 'Bearish') + ' Potential Candle 2 on ' + syminfo.ticker, alert.freq_once_per_bar)
+        alert((isBull ? 'Bullish' : 'Bearish') + ' Potential Candle 2 on ' + syminfo.ticker + ', ' + modelText(), alert.freq_once_per_bar)
 
 pruneEarlyCisd(array<EarlyCisdRecord> recs, int thresholdBar) =>
     if not na(thresholdBar)
@@ -1105,7 +1123,7 @@ icStep(C2Setup s, int m, bool live) =>
                 if c4Ok and (icInFvg(s, swPx, swIdx) or icSweepsSwing(s, swPx, swIdx))
                     registerIcCisd(s, swPx, swIdx, m)
                     if live and showAlerts and protAlerts
-                        alert((s.isBull ? 'Bullish' : 'Bearish') + ' Protected Swing on ' + syminfo.ticker, alert.freq_once_per_bar)
+                        alert((s.isBull ? 'Bullish' : 'Bearish') + ' Protected Swing on ' + syminfo.ticker + ', ' + modelText(), alert.freq_once_per_bar)
                 icClearPending(s)
     else if oppBar
         s.icPending      := true
@@ -1192,19 +1210,6 @@ registerRecord(C2Setup s) =>
     earliestVisibleBar = setupRecords.size() > 0 ? setupRecords.first().creationBar : na
     pruneEarlyCisd(bullEarlyCisdRecords, earliestVisibleBar)
     pruneEarlyCisd(bearEarlyCisdRecords, earliestVisibleBar)
-
-autoTf = switch modelType
-    '1s-1m'  => '1'
-    '15s-5m' => '5'
-    '1m-15m' => '15'
-    '3m-30m' => '30'
-    '5m-1H'  => '60'
-    '15m-4H' => '240'
-    '1H-1D'  => '1D'
-    '4H-1W'  => '1W'
-    '1D-1M'  => '1M'
-    'Custom' => customHTF
-    =>          autoHTF() == '' ? '1M' : autoHTF()
 
 // The chart must be the fractal's entry timeframe or lower, and below the model HTF
 validTf = (modelType == 'Automatic' ? autoHTF() != '' : timeframe.in_seconds() <= timeframe.in_seconds(ltfCode())) and timeframe.in_seconds(autoTf) > timeframe.in_seconds()
@@ -1608,9 +1613,6 @@ smtDrawOn(C2Setup s, int x1, float y1, int x2, float y2, bool isHigh, string txt
     s.smtLns.push(line.new(x1, y1, x2, y2, xloc = xloc.bar_index, color = smtColorFor(isHigh), style = lineStyleFromStr(smtStyle), width = smtWidth))
     if txt != ''
         s.smtLbls.push(label.new(int(math.round((x1 + x2) / 2.0)), (y1 + y2) / 2, txt, xloc = xloc.bar_index, yloc = yloc.price, style = isHigh ? label.style_label_down : label.style_label_up, color = na, textcolor = smtColorFor(isHigh), size = textSize(smtLblSize), text_font_family = font.family_default))
-
-modelText() =>
-    tfLabel(ltfCode()) + '-' + tfLabel(autoTf)
 
 // [REVEAL] A model is only drawn once its LTF CISD confirms. Everything that already happened is drawn then.
 method reveal(C2Setup s) =>
@@ -2716,7 +2718,7 @@ if smtOnChart and (pair1Name != '' or pair2Name != '')
 f_smt_draw(C2Setup s, int x1, float y1, int x2, float y2, bool isHigh, string txt) =>
     smtDrawOn(s, x1, y1, x2, y2, isHigh, txt)
     if showAlerts and smtAlerts
-        alert((isHigh ? 'Bearish' : 'Bullish') + ' SMT Divergence on ' + syminfo.ticker, alert.freq_once_per_bar)
+        alert((isHigh ? 'Bearish' : 'Bullish') + ' SMT Divergence on ' + syminfo.ticker + ', ' + modelText(), alert.freq_once_per_bar)
 
 // beyond = further in the setup's direction of the extreme (bearish: higher, bullish: lower)
 f_beyond(bool isHigh, float a, float b) =>

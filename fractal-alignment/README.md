@@ -13,10 +13,10 @@ In the order they appear in the settings window. Defaults work out of the box; d
 | Group | What it does | Default |
 |---|---|---|
 | Alerts Settings | Master switch + model, C2/C3 closure, Early CISD, SMT and protected swing alerts | On (Early CISD off) |
-| Warnings | Message when the timeframe or a pair does not fit | Off |
+| Warnings | Message when the timeframe or a pair does not fit | On |
 | General Settings | History, fractal (Automatic / manual / Custom), C2 / C3 / C4 models, bias (Neutral, Bullish, Bearish, Auto Bias 1 / 2), Hide Setups | History 1, Automatic, Neutral |
 | HTF Candles | Model HTF block (count, size, offset, colors), HTF 1 / HTF 2 extra blocks, HTF Open, Previous EQ, L/H lines | 4 candles, Normal, extra blocks off |
-| HTF Candles Time Labels | Time under each candle, block title (timeframe + time left), 12h / 24h, time zone | On, title above and below |
+| HTF Candles Time Labels | Time under each candle, block title (timeframe + time left), 12h / 24h, time zone | On, title above |
 | Model Style | CISD, Early CISD, candle EQ, C1 sweep, labels, T-Spot | All on (Early CISD off) |
 | Protected Swings | Dots and lines after the CISD | On |
 | Asset Correlation | SMT and PSP, pairs (Automatic / Custom), labels, line style | On, Automatic |
@@ -68,7 +68,7 @@ On the chart:
 
 - **Model HTF block** (1H on a 5m chart): 4–40 candles, size (Small / Normal / Large), offset. White / black candles, packed close together.
 - **HTF 1 / HTF 2** (off by default): extra blocks to the right. Auto = one and two steps above the model HTF (15m, 1H, 4H, D, W, M), or pick 15m, 30m, 1H, 90m, 4H, 6H, 7H, D, W, M; Auto never picks 90m, 6H or 7H. They show Previous EQ, sweeps, SMT and PSP; no model runs on them. They also show with Hide? on (Hide? only hides the model block) and on timeframes without a fractal (45m, 2H, 7H…), where Auto counts from the chart (7H: D / W). Each has its own candle count (the box next to its timeframe, 1 to 10, default 4); HTF Candles is only for the model block (at least 4).
-- **HTF Label + Remaining Time** above and below each block by default (`Top` / `Bottom` to keep one): the timeframe in bold, the time left in brackets under it, e.g. `1H` / `(12:40)`.
+- **HTF Label + Remaining Time** above each block by default (`Bottom` or `Both` to change): the timeframe in bold, the time left in brackets under it, e.g. `1H` / `(12:40)`.
 - **HTF Open** and **Previous EQ** on the chart, on the HTF candles, or both. **L/H Lines** (off by default). **Time Labels** under each candle (on by default): open time, the day name on daily, the week's Monday date on weekly (`NOV 2`), the month on monthly.
 - **Live sweep:** when the forming candle takes the previous candle's extreme and trades back inside.
 - **SMT** between consecutive HTF candles, including the forming one; hidden once a newer candle trades beyond it.
@@ -108,11 +108,11 @@ One column; each row can be turned off. **ADR · CDR %** is on by default, the d
 
 ## Alerts
 
-**Alerts Settings** at the top: the master switch **Alerts?**, then **Model Candles?** (Candle 2 / 3 / 4 and CISD Confirmed), **Early CISD?**, **SMT Divergence?**, **Protected Swings?**. To create one: the indicator's menu (three dots next to its name) → Add alert, condition **Any alert() function call**. An alert keeps the settings it was created with; after changing them, create it again. The dialog also lists separate conditions: **Bullish / Bearish C2/C3 Closure** (the HTF candle closed and formed a model, its CISD has not come yet; only in this list, not in Any alert() function call), Bullish / Bearish CISD Confirmed, Bullish / Bearish Early CISD.
+**Alerts Settings** at the top: the master switch **Alerts?**, then **Model Candles?** (Candle 2 / 3 / 4 and CISD Confirmed), **Early CISD?**, **SMT Divergence?**, **Protected Swings?**. To create one: the indicator's menu (three dots next to its name) → Add alert, condition **Any alert() function call**. Every alert message ends with the symbol and the fractal (`... on NAS100, 15m-4H`). An alert keeps the settings it was created with; after changing them, create it again. The dialog also lists separate conditions: **Bullish / Bearish C2/C3 Closure** (the HTF candle closed and formed a model, its CISD has not come yet; only in this list, not in Any alert() function call), Bullish / Bearish CISD Confirmed, Bullish / Bearish Early CISD.
 
 ## Other
 
-- **Warnings** (off by default): a short message when the chart timeframe does not fit the fractal or a pair has no data.
+- **Warnings** (on by default; nothing shows while all is fine): a short message when the chart timeframe does not fit the fractal or a pair has no data.
 - **Calculated bars** (2000, TradingView's own setting): the first fifth (at most 500) warms up the HTF candles; the model runs on the rest. Lower it for speed, raise it to see further back.
 
 ## Colors and dark theme
