@@ -27,7 +27,7 @@ biasFilter  = input.string('Neutral', 'Bias', options = ['Neutral', 'Bullish', '
 
 grpCandles     = 'HTF Candles'
 htfCandleCount = input.int(4, 'HTF Candles', minval = 4, maxval = 40, group = grpCandles, tooltip = 'Candles in the model block (the HTF of the fractal), 4 to 40. At least 4: the model needs C1 to C4. HTF 1 / HTF 2 have their own count.')
-htfSize        = input.string('Small', 'Size', options = ['Small', 'Normal', 'Large'], group = grpCandles, inline = 'size')
+htfSize        = input.string('Normal', 'Size', options = ['Small', 'Normal', 'Large'], group = grpCandles, inline = 'size')
 hideHtf        = input.bool(false, 'Hide?', group = grpCandles, inline = 'size')
 hideSetups     = input.bool(false, 'Hide Setups?', group = grpCandles, inline = 'size', tooltip = 'Hide?: hides the HTF candles on the right.\n\nHide Setups?: no models on the chart (C2 / C3 / C4, CISD, T-Spots, protected swings, chart SMT, projections, formation liquidity, early CISD), and no model alerts. The HTF candles and their lines stay.')
 showX1         = input.bool(false, 'HTF 1', group = grpCandles, inline = 'xhtf1')
@@ -219,7 +219,7 @@ icBackfillMaxBars = 300
 icCisdDotSize     = 'Small'
 
 // HTF candle size: half body width and the distance between candle centers, in bars
-htfHalf       = htfSize == 'Large' ? 4 : htfSize == 'Normal' ? 3 : 2
+htfHalf       = htfSize == 'Large' ? 3 : htfSize == 'Normal' ? 2 : 1
 candleSpacing = htfHalf * 2 + 1
 
 // where things are drawn
