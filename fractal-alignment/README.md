@@ -58,7 +58,7 @@ On the chart:
 - **Protected Swings:** continuations after the CISD. The swing must reach a point of interest (a fair value gap in the setup's direction, or an untaken swing it sweeps), then price closes through the opposite candles that led into it. A dot on the swing and a short line at the level; the dot turns gray once price takes the swing back.
 - **Formation Liquidity:** the model's targets, the high (bullish) or low (bearish) of C1 and of the candle before it. A line ends at the bar that takes it.
 - **SD projections** (off by default): multiples of the CISD ↔ C2 extreme range.
-- **XC2:** price closes beyond the C2 extreme (red in C3, orange later; the model's SMT goes with it). **XC4:** C2 models only; during C4 price trades through C3's opposite extreme.
+- **XC2:** price closes beyond the C2 extreme (red in C3, orange later; the model's SMT goes with it). **XC4:** C2 models only; during C4 price trades through C3's opposite extreme. **XC Labels** (on the Show Labels? row, on by default): turn it off and a failed model leaves no XC2 / XC3 / XC4 label; everything else stays.
 
 ## HTF candles
 

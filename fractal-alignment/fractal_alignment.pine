@@ -189,10 +189,11 @@ tbl_smt        = input.bool(true, 'SMT Ticker(s)', group = grpInfo, inline = 'r4
 tbl_date       = input.bool(false, 'Date', group = grpInfo, inline = 'r4')
 tbl_bg_colorIn = input.color(#ffffff, 'Colors', group = grpInfo, inline = 'tblclr')
 tbl_text_color = input.color(#787b86, '', group = grpInfo, inline = 'tblclr')
-// HTF 1 / HTF 2 candle counts: declared last so the stored settings of every input above keep their position;
+// Added later (HTF 1 / HTF 2 candle counts, XC Labels): declared last so the stored settings of every input above keep their position;
 // TradingView still shows them on the HTF 1 / HTF 2 lines (same group and inline).
 x1Count        = input.int(4, '', minval = 1, maxval = 10, group = grpCandles, inline = 'xhtf1', active = showX1)
 x2Count        = input.int(4, '', minval = 1, maxval = 10, group = grpCandles, inline = 'xhtf2', active = showX2)
+showXcLbl      = input.bool(true, 'XC Labels', group = grpVisuals, inline = 'lbl', active = showLabels, tooltip = 'XC Labels: off = a failed model (XC2 / XC3 / XC4) leaves no label; everything else stays.')
 
 //#endregion
 
@@ -1638,9 +1639,12 @@ method reveal(C2Setup s) =>
                 s.c4Box := na
                 if not na(s.c4Dash)
                     line.set_color(s.c4Dash, cisdBearColor)
-                if not na(s.c4Lbl)
+                if not na(s.c4Lbl) and showXcLbl
                     label.set_text(s.c4Lbl, 'XC4')
                     label.set_textcolor(s.c4Lbl, cisdBearColor)
+                else if not na(s.c4Lbl)
+                    label.delete(s.c4Lbl)
+                    s.c4Lbl := na
         registerRecord(s)
         if showAlerts and modelAlerts
             alert((s.isBull ? 'Bullish ' : 'Bearish ') + (s.c3Model ? 'Candle 3' : 'Candle 2') + ' (' + s.tag + ') on ' + syminfo.ticker + ', ' + modelText(), alert.freq_once_per_bar)
@@ -1776,9 +1780,12 @@ method extendAndCheck(C2Setup s) =>
         // XC2: price closes back beyond the swing (the C2 extreme). Red in C3, orange later.
         c2Breach = s.isBull ? close < s.extreme : close > s.extreme
         if c2Breach
-            if not na(s.c2Lbl)
+            if not na(s.c2Lbl) and showXcLbl
                 label.set_text(s.c2Lbl, 'X' + s.tag)
                 label.set_textcolor(s.c2Lbl, s.phase == 2 ? color.orange : cisdBearColor)
+            else if not na(s.c2Lbl)
+                label.delete(s.c2Lbl)
+                s.c2Lbl := na
             box.delete(s.c3Box)
             s.c3Box := na
             line.delete(s.c3Dash)
@@ -1816,9 +1823,12 @@ method checkC4Invalid(C2Setup s) =>
         invalid = s.isBull ? low < s.c3Extreme : high > s.c3Extreme
         if invalid
             s.c4Invalid := true
-            if not na(s.c4Lbl)
+            if not na(s.c4Lbl) and showXcLbl
                 label.set_text(s.c4Lbl, 'XC4')
                 label.set_textcolor(s.c4Lbl, cisdBearColor)
+            else if not na(s.c4Lbl)
+                label.delete(s.c4Lbl)
+                s.c4Lbl := na
             if not na(s.c4Dash)
                 line.set_color(s.c4Dash, cisdBearColor)
                 line.set_x2(s.c4Dash, bar_index)
