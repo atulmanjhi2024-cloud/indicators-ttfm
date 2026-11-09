@@ -12,7 +12,7 @@ In the order they appear in the settings window. Defaults work out of the box; d
 
 | Group | What it does | Default |
 |---|---|---|
-| Alerts Settings | Master switch + model, Early CISD, SMT and protected swing alerts | On (Early CISD off) |
+| Alerts Settings | Master switch + model, C2/C3 closure, Early CISD, SMT and protected swing alerts | On (Early CISD off) |
 | Warnings | Message when the timeframe or a pair does not fit | Off |
 | General Settings | History, fractal (Automatic / manual / Custom), C2 / C3 / C4 models, bias (Neutral, Bullish, Bearish, Auto Bias 1 / 2), Hide Setups | History 1, Automatic, Neutral |
 | HTF Candles | Model HTF block (count, size, offset, colors), HTF 1 / HTF 2 extra blocks, HTF Open, Previous EQ, L/H lines | 4 candles, Small, extra blocks off |
@@ -104,7 +104,7 @@ One column; each row can be turned off. **ADR · CDR %** is on by default, the d
 
 ## Alerts
 
-**Alerts Settings** at the top: the master switch **Alerts?**, then **Model Candles?** (Candle 2 / 3 / 4 and CISD Confirmed), **Early CISD?**, **SMT Divergence?**, **Protected Swings?**. To create one: the indicator's menu (three dots next to its name) → Add alert, condition **Any alert() function call**. An alert keeps the settings it was created with; after changing them, create it again. The dialog also lists separate conditions for the CISD alerts (Bullish / Bearish CISD Confirmed, Bullish / Bearish Early CISD).
+**Alerts Settings** at the top: the master switch **Alerts?**, then **Model Candles?** (Candle 2 / 3 / 4 and CISD Confirmed), **Early CISD?**, **SMT Divergence?**, **Protected Swings?**. To create one: the indicator's menu (three dots next to its name) → Add alert, condition **Any alert() function call**. An alert keeps the settings it was created with; after changing them, create it again. The dialog also lists separate conditions: **Bullish / Bearish C2/C3 Closure** (the HTF candle closed and formed a model, its CISD has not come yet; only in this list, not in Any alert() function call), Bullish / Bearish CISD Confirmed, Bullish / Bearish Early CISD.
 
 ## Other
 

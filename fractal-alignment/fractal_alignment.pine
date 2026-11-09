@@ -2060,6 +2060,11 @@ if (c2SellGo or c3SellGo) and not na(sellSetup) and not na(sK2)
 markTrigger(c2BuyGo or c3BuyGo, true, bI1, true)
 markTrigger(c2SellGo or c3SellGo, true, sI1, false)
 
+// Heads-up: the HTF candle closed and formed a model (C2 or C3 closure), its CISD has not come yet.
+// Only in the "Add Alert" dialog list, not in "Any alert() function call".
+alertcondition((c2BuyGo or c3BuyGo) and not bullReclaimed[1] and showAlerts and modelAlerts, title = 'Bullish C2/C3 Closure', message = 'Bullish C2/C3 closed on {{ticker}} ({{interval}}), waiting for CISD')
+alertcondition((c2SellGo or c3SellGo) and not bearReclaimed[1] and showAlerts and modelAlerts, title = 'Bearish C2/C3 Closure', message = 'Bearish C2/C3 closed on {{ticker}} ({{interval}}), waiting for CISD')
+
 buySetup  := buySetup.extendAndCheck()
 sellSetup := sellSetup.extendAndCheck()
 
@@ -2084,7 +2089,7 @@ if not na(sellSetup) and sellSetup.justConfirmed
     sellSetup.justConfirmed := false
 
 // Separate alert conditions: in TradingView's "Add Alert" dialog pick one of these
-// instead of "Any alert() function call" to set the CISD alerts up on their own.
+// instead of "Any alert() function call" to set the CISD alerts up on their own (C2/C3 Closure is above).
 alertcondition(bullEarlyCisdFiredThisBar and showAlerts and earlyCisdAlerts and not hideSetups, title = 'Bullish Early CISD', message = 'Bullish Early CISD on {{ticker}} ({{interval}})')
 alertcondition(bearEarlyCisdFiredThisBar and showAlerts and earlyCisdAlerts and not hideSetups, title = 'Bearish Early CISD', message = 'Bearish Early CISD on {{ticker}} ({{interval}})')
 alertcondition(cisdBullFiredThisBar and showAlerts and modelAlerts and not hideSetups, title = 'Bullish CISD Confirmed', message = 'Bullish CISD Confirmed on {{ticker}} ({{interval}})')
