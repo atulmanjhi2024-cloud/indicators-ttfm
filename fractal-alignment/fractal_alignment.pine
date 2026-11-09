@@ -26,14 +26,14 @@ customHTF   = input.timeframe('1D', '-', group = grpModel, inline = 'custom', ac
 biasFilter  = input.string('Neutral', 'Bias', options = ['Neutral', 'Bullish', 'Bearish', 'Auto Bias 1', 'Auto Bias 2'], group = grpModel, tooltip = 'Neutral: bullish and bearish setups. Bullish / Bearish: only setups of that side are shown.\n\nAuto Bias 1 / 2: follows the fractal model one / two steps higher (on 5m-1H: 15m-4H / 1H-1D). While that model runs (C3 and C4, until its C2 extreme is closed through) only setups in its direction are shown; with no higher model both sides show.')
 
 grpCandles     = 'HTF Candles'
-htfCandleCount = input.int(4, 'HTF Candles', minval = 4, maxval = 40, group = grpCandles, tooltip = '4 to 40. At least 4: the model needs C1 to C4.')
+htfCandleCount = input.int(4, 'HTF Candles', minval = 4, maxval = 40, group = grpCandles, tooltip = 'Candles in the model block (the HTF of the fractal), 4 to 40. At least 4: the model needs C1 to C4. HTF 1 / HTF 2 have their own count.')
 htfSize        = input.string('Small', 'Size', options = ['Small', 'Normal', 'Large'], group = grpCandles, inline = 'size')
 hideHtf        = input.bool(false, 'Hide?', group = grpCandles, inline = 'size')
 hideSetups     = input.bool(false, 'Hide Setups?', group = grpCandles, inline = 'size', tooltip = 'Hide?: hides the HTF candles on the right.\n\nHide Setups?: no models on the chart (C2 / C3 / C4, CISD, T-Spots, protected swings, chart SMT, projections, formation liquidity, early CISD), and no model alerts. The HTF candles and their lines stay.')
-showX1         = input.bool(false, 'HTF 1', group = grpCandles, inline = 'xhtf')
-x1Sel          = input.string('Auto', '', options = ['Auto', '15m', '30m', '1H', '90m', '4H', '6H', '7H', 'D', 'W', 'M'], group = grpCandles, inline = 'xhtf', active = showX1)
-showX2         = input.bool(false, 'HTF 2', group = grpCandles, inline = 'xhtf')
-x2Sel          = input.string('Auto', '', options = ['Auto', '15m', '30m', '1H', '90m', '4H', '6H', '7H', 'D', 'W', 'M'], group = grpCandles, inline = 'xhtf', active = showX2, tooltip = 'Extra HTF candles to the right of the model HTF candles, with its title (HTF Label / Remaining Time) above and / or below each block.\n\nAuto: HTF 1 = one step above the model HTF, HTF 2 = one step above HTF 1 (1m-15m: 1H / 4H, 5m-1H: 4H / D, 15m-4H: D / W, 1H-1D: W / M). 90m, 6H and 7H are never picked by Auto.\n\nNo model runs on them; they show Previous EQ, Candle 1 Sweep, SMT and PSP like the model block (HTF Open only on the model block), with the same settings. Up to 10 candles each (HTF Candles).')
+showX1         = input.bool(false, 'HTF 1', group = grpCandles, inline = 'xhtf1')
+x1Sel          = input.string('Auto', '', options = ['Auto', '15m', '30m', '1H', '90m', '4H', '6H', '7H', 'D', 'W', 'M'], group = grpCandles, inline = 'xhtf1', active = showX1)
+showX2         = input.bool(false, 'HTF 2', group = grpCandles, inline = 'xhtf2')
+x2Sel          = input.string('Auto', '', options = ['Auto', '15m', '30m', '1H', '90m', '4H', '6H', '7H', 'D', 'W', 'M'], group = grpCandles, inline = 'xhtf2', active = showX2, tooltip = 'Extra HTF candles to the right of the model HTF candles, with its title (HTF Label / Remaining Time) above and / or below each block.\n\nAuto: HTF 1 = one step above the model HTF, HTF 2 = one step above HTF 1 (1m-15m: 1H / 4H, 5m-1H: 4H / D, 15m-4H: D / W, 1H-1D: W / M). 90m, 6H and 7H are never picked by Auto.\n\nNo model runs on them; they show Previous EQ, Candle 1 Sweep, SMT and PSP like the model block (HTF Open only on the model block), with the same settings. The number next to each: how many candles that block shows (1 to 10).')
 candleOffsetIn = input.int(0, 'Offset', minval = 0, maxval = 100, group = grpCandles, tooltip = 'Extra empty bars between the last chart candle and the HTF candles.')
 bullBody       = input.color(color.rgb(255, 255, 255), 'Body', group = grpCandles, inline = 'body')
 bearBodyIn     = input.color(#131722, '', group = grpCandles, inline = 'body')
@@ -189,6 +189,10 @@ tbl_smt        = input.bool(true, 'SMT Ticker(s)', group = grpInfo, inline = 'r4
 tbl_date       = input.bool(false, 'Date', group = grpInfo, inline = 'r4')
 tbl_bg_colorIn = input.color(#ffffff, 'Colors', group = grpInfo, inline = 'tblclr')
 tbl_text_color = input.color(#787b86, '', group = grpInfo, inline = 'tblclr')
+// HTF 1 / HTF 2 candle counts: declared last so the stored settings of every input above keep their position;
+// TradingView still shows them on the HTF 1 / HTF 2 lines (same group and inline).
+x1Count        = input.int(4, '', minval = 1, maxval = 10, group = grpCandles, inline = 'xhtf1', active = showX1)
+x2Count        = input.int(4, '', minval = 1, maxval = 10, group = grpCandles, inline = 'xhtf2', active = showX2)
 
 //#endregion
 
@@ -1478,7 +1482,6 @@ string x2Base = showX1 ? x1Tf : x1Auto
 string x2Tf   = x2Sel == 'Auto' ? abNextHtf(x2Base) : xSelTf(x2Sel)
 bool   x1On   = showX1 and validTf and not hideHtf and timeframe.in_seconds(x1Tf) > timeframe.in_seconds() and (x1Sel != 'Auto' or timeframe.in_seconds(x1Tf) > timeframe.in_seconds(autoTf))
 bool   x2On   = showX2 and validTf and not hideHtf and timeframe.in_seconds(x2Tf) > timeframe.in_seconds() and (x2Sel != 'Auto' or timeframe.in_seconds(x2Tf) > timeframe.in_seconds(x2Base))
-int    nX     = math.min(htfCandleCount, 10)
 
 type XData
     array<float> o
@@ -1505,8 +1508,8 @@ xReq(simple int n) =>
             at.push(time[k])
     [ao, ah, al, ac, at]
 
-xFetch(string sym, string tf) =>
-    [o, h, l, c, t] = request.security(sym, tf, xReq(nX), lookahead = barmerge.lookahead_on, ignore_invalid_symbol = true, calc_bars_count = 100)
+xFetch(string sym, string tf, simple int n) =>
+    [o, h, l, c, t] = request.security(sym, tf, xReq(n), lookahead = barmerge.lookahead_on, ignore_invalid_symbol = true, calc_bars_count = 100)
     XData.new(o, h, l, c, t)
 
 XData x1D = na
@@ -1516,17 +1519,17 @@ XData x2D = na
 XData x2P = na
 XData x2Q = na
 if x1On
-    x1D := xFetch(syminfo.tickerid, x1Tf)
+    x1D := xFetch(syminfo.tickerid, x1Tf, x1Count)
     if needPairs and pair1Name != ''
-        x1P := xFetch(pair1Name, x1Tf)
+        x1P := xFetch(pair1Name, x1Tf, x1Count)
     if needPairs and pair2Name != ''
-        x1Q := xFetch(pair2Name, x1Tf)
+        x1Q := xFetch(pair2Name, x1Tf, x1Count)
 if x2On
-    x2D := xFetch(syminfo.tickerid, x2Tf)
+    x2D := xFetch(syminfo.tickerid, x2Tf, x2Count)
     if needPairs and pair1Name != ''
-        x2P := xFetch(pair1Name, x2Tf)
+        x2P := xFetch(pair1Name, x2Tf, x2Count)
     if needPairs and pair2Name != ''
-        x2Q := xFetch(pair2Name, x2Tf)
+        x2Q := xFetch(pair2Name, x2Tf, x2Count)
 
 // Chart symbol swept C1 (that is what makes it a C2). SMT = a pair did NOT sweep its own C1.
 pairSmtBuy(PairBars p) =>
@@ -2506,9 +2509,9 @@ if (barstate.islast or barstate.isrealtime) and validTf and htfCandles.size() > 
     if x1On or x2On
         // a block that would end past the 500-bar drawing limit right of the last bar is left out
         int xLeft = blockRight + candleSpacing + 3
-        if x1On and xLeft + nX * candleSpacing + 12 <= bar_index + 495
+        if x1On and xLeft + x1Count * candleSpacing + 12 <= bar_index + 495
             xLeft := xBlock(x1D, x1P, x1Q, pair1InvOn, pair2InvOn, xLeft, x1Tf) + candleSpacing + 3
-        if x2On and xLeft + nX * candleSpacing + 12 <= bar_index + 495
+        if x2On and xLeft + x2Count * candleSpacing + 12 <= bar_index + 495
             xBlock(x2D, x2P, x2Q, pair1InvOn, pair2InvOn, xLeft, x2Tf)
 
 // [EXTRA HTF] pooled drawings this redraw did not use
