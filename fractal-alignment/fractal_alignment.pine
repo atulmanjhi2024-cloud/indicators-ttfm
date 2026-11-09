@@ -1363,29 +1363,16 @@ adrReq(simple int len, simple int h, simple bool crypto) =>
     [adr, dH, dL]
 
 
-// [1H REQUEST] ADR always comes from 1H; on a 5m chart the same request also gives the model HTF candle.
-// The ADR is only read on the last bar, so unless the model HTF is 1H the request needs just the last ADR days.
-h60Req(simple int len, simple int h, simple bool crypto) =>
-    [adr, dH, dL] = adrReq(len, h, crypto)
-    [adr, dH, dL, open, high, low, close, high[1], low[1]]
-
-[adrVal, adrDayH, adrDayL, h60O, h60H, h60L, h60C, h60H1, h60L1] = request.security(syminfo.tickerid, '60', h60Req(adrLen, dayStartH, dayIsCrypto), lookahead = barmerge.lookahead_on, calc_bars_count = autoTf == '60' ? 5000 : (adrLen + 3) * 24)
-
-// Model HTF candle: forming candle [0] and the previous one's high / low.
-float currentO = h60O
-float currentH = h60H
-float currentL = h60L
-// close comes from the chart bar: D / W / M futures bars close at the settlement price, the model uses the last trade
-float currentC = close
-float prevH1   = h60H1
-float prevL1   = h60L1
-if autoTf != '60'
-    [mO, mH, mL, mC, mH1, mL1] = request.security(syminfo.tickerid, autoTf, [open[0], high[0], low[0], close[0], high[1], low[1]], lookahead = barmerge.lookahead_on, calc_bars_count = 5000)
-    currentO := mO
-    currentH := mH
-    currentL := mL
-    prevH1   := mH1
-    prevL1   := mL1
+// [1H REQUEST] ADR comes from 1H bars. It is only read on the last bar, so the request needs just the last
+// ADR days, and it is skipped when neither the Info Table row nor the ADR+ / ADR- lines use it.
+float adrVal  = na
+float adrDayH = na
+float adrDayL = na
+if (adrShow and tbl_show) or adrLinesShow
+    [rAdr, rDayH, rDayL] = request.security(syminfo.tickerid, '60', adrReq(adrLen, dayStartH, dayIsCrypto), lookahead = barmerge.lookahead_on, calc_bars_count = (adrLen + 3) * 24)
+    adrVal  := rAdr
+    adrDayH := rDayH
+    adrDayL := rDayL
 
 
 // [SMT / PSP] One request per pair, at the chart timeframe: the pair's bar high / low, plus its last two
@@ -1446,17 +1433,20 @@ pairInvert(PairBars p, bool inv) =>
     inv and not na(p) ? PairBars.new(-p.l, -p.h, -p.o, -p.c, -p.l1, -p.h1, -p.l2, -p.h2, -p.o1, -p.c1, -p.o2, -p.c2, -p.o3, -p.c3) : p
 
 bool needPairs = show_smt or showPsp
+// The chart-timeframe pair bars feed the model (chart SMT, PSP) and the model block; without a fractal on this
+// chart, or with both hidden, nothing reads them (HTF 1 / HTF 2 request the pairs on their own timeframe).
+bool pairBarsOn = needPairs and validTf and not (hideHtf and hideSetups)
 PairBars pb1a = na
-if needPairs and pair1A != ''
+if pairBarsOn and pair1A != ''
     pb1a := request.security(pair1A, timeframe.period, smtPairReq(autoTf), ignore_invalid_symbol = true, calc_bars_count = 5000)
 PairBars pb1b = na
-if needPairs and pair1B != ''
+if pairBarsOn and pair1B != ''
     pb1b := request.security(pair1B, timeframe.period, smtPairReq(autoTf), ignore_invalid_symbol = true, calc_bars_count = 5000)
 PairBars pb2a = na
-if needPairs and pair2A != ''
+if pairBarsOn and pair2A != ''
     pb2a := request.security(pair2A, timeframe.period, smtPairReq(autoTf), ignore_invalid_symbol = true, calc_bars_count = 5000)
 PairBars pb2b = na
-if needPairs and pair2B != ''
+if pairBarsOn and pair2B != ''
     pb2b := request.security(pair2B, timeframe.period, smtPairReq(autoTf), ignore_invalid_symbol = true, calc_bars_count = 5000)
 
 // The fallback name is used only when the first choice never had data
@@ -1475,8 +1465,9 @@ PairBars pair1     = pairInvert(use1b ? pb1b : pb1a, pair1InvOn)
 PairBars pair2     = pairInvert(use2b ? pb2b : pb2a, pair2InvOn)
 string   pair1Name = pair1A == '' ? '' : use1b ? pair1B : pair1A
 string   pair2Name = pair2A == '' ? '' : use2b ? pair2B : pair2A
-bool     pair1Seen = seen1a or seen1b
-bool     pair2Seen = seen2a or seen2b
+// not requested = nothing to report as missing
+bool     pair1Seen = not pairBarsOn or seen1a or seen1b
+bool     pair2Seen = not pairBarsOn or seen2a or seen2b
 
 // [EXTRA HTF] HTF 1 / HTF 2: higher timeframe candle blocks right of the model block.
 // No model runs on them. Each block is requested on its own timeframe (a 1m chart's 2000 bars cannot
@@ -1583,8 +1574,6 @@ smtNames(bool d1, bool d2) =>
             s := s == '' ? statusSym(pair2Name) : s + '/' + statusSym(pair2Name)
     s
 
-c2Buy         = currentL < prevL1 and currentC > prevL1
-c2Sell        = currentH > prevH1 and currentC < prevH1
 int htfOpenT  = time(autoTf)
 periodChanged = htfOpenT != htfOpenT[1]
 
@@ -2012,6 +2001,11 @@ if (show_smt or showPsp) and htfCandles.size() > 0
         htfNow.qO := na(htfNow.qO) ? pair2.o : htfNow.qO
         htfNow.qC := pair2.c
 
+// C2 closure, read when the next HTF candle opens: the candle that just closed took the previous candle's
+// low / high and its last trade (the chart's close, not a futures settlement) is back inside. The HTF highs /
+// lows are the ones built from the chart bars (h0 / l0 / h1 / l1), like the HTF candles on the right.
+bool c2Buy  = l0 < l1 and close > l1
+bool c2Sell = h0 > h1 and close < h1
 if periodChanged
     state.prevC2Buy  := c2Buy[1]
     state.prevC2Sell := c2Sell[1]
