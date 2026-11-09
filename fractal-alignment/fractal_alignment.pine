@@ -483,6 +483,31 @@ f_smt_pairs(string t) =>
         'BTCUSD'    => ['ETHUSD', '', '', '']
         'ETHUSD'    => ['BTCUSD', '', '', '']
         => ['', '', '', '']
+    // Brokers whose index names are known (TradingView symbol search, 9 Nov 2026): only that name is
+    // requested, no fallback request (each one costs a full 5000-bar request).
+    [kNq, kSp, kDj] = switch syminfo.prefix
+        'FX'            => ['NAS100', 'SPX500', 'US30']
+        'PEPPERSTONE'   => ['NAS100', 'US500', 'US30']
+        'CAPITALCOM'    => ['NAS100', 'SPX500', 'US30']
+        'FOREXCOM'      => ['NAS100', 'SPX500', 'US30']
+        'FPMARKETS'     => ['US100', 'US500', 'US30']
+        'TICKMILL'      => ['USTEC', 'US500', 'US30']
+        'FUSIONMARKETS' => ['NAS100', 'US500', 'US30']
+        'SKILLING'      => ['US100', 'SPX500', 'US30']
+        => ['', '', '']
+    bool tNq = t == 'US100' or t == 'NAS100' or t == 'USTEC'
+    bool tSp = t == 'US500' or t == 'SPX500'
+    if kNq != '' and (tNq or tSp or t == 'US30')
+        a1 := tSp ? kNq : kSp
+        b1 := ''
+        a2 := t == 'US30' ? kNq : kDj
+        b2 := ''
+    // FXCM has no XAUEUR / XAUGBP / XAGEUR / XAGGBP: the OANDA names directly
+    if syminfo.prefix == 'FX' and str.startswith(b1, 'OANDA:')
+        a1 := b1
+        b1 := ''
+        a2 := b2
+        b2 := ''
     string pre = syminfo.prefix + ':'
     // a name with its own exchange ('OANDA:XAUEUR') is used as it is
     string p1a = a1 != '' ? (str.contains(a1, ':') ? a1 : pre + a1) : ''
@@ -1347,11 +1372,12 @@ adrReq(simple int len, simple int h, simple bool crypto) =>
 
 
 // [1H REQUEST] ADR always comes from 1H; on a 5m chart the same request also gives the model HTF candle.
+// The ADR is only read on the last bar, so unless the model HTF is 1H the request needs just the last ADR days.
 h60Req(simple int len, simple int h, simple bool crypto) =>
     [adr, dH, dL] = adrReq(len, h, crypto)
     [adr, dH, dL, open, high, low, close, high[1], low[1]]
 
-[adrVal, adrDayH, adrDayL, h60O, h60H, h60L, h60C, h60H1, h60L1] = request.security(syminfo.tickerid, '60', h60Req(adrLen, dayStartH, dayIsCrypto), lookahead = barmerge.lookahead_on, calc_bars_count = 5000)
+[adrVal, adrDayH, adrDayL, h60O, h60H, h60L, h60C, h60H1, h60L1] = request.security(syminfo.tickerid, '60', h60Req(adrLen, dayStartH, dayIsCrypto), lookahead = barmerge.lookahead_on, calc_bars_count = autoTf == '60' ? 5000 : (adrLen + 3) * 24)
 
 // Model HTF candle: forming candle [0] and the previous one's high / low.
 float currentO = h60O
@@ -2047,7 +2073,7 @@ flPick(int idx, bool isBull) =>
 bool psp3Hit = false
 if showPsp and (c3BuyGo or c3SellGo) and htfCandles.size() > 3
     psp3Hit := pairPsp3(pair1, htfCandles.get(3), htfCandles.get(2)) or pairPsp3(pair2, htfCandles.get(3), htfCandles.get(2))
-string c3Tag = 'C3' + (psp3Hit ? '+PSP' : '')
+string c3Tag = c3BuyGo or c3SellGo ? 'C3' + (psp3Hit ? '+PSP' : '') : ''
 
 // C2 model: C2 = get(1), C1 = get(2). C3 model: C2 = get(2), C1 = get(3).
 int       bI1 = c3BuyGo ? 3 : 2
@@ -2055,7 +2081,7 @@ HtfCandle bK1 = htfAt(bI1)
 HtfCandle bK2 = htfAt(bI1 - 1)
 [bF1p, bF1b] = flPick(bI1, true)
 [bF0p, bF0b] = flPick(bI1 + 1, true)
-buySetup := processSetup(buySetup, c2BuyGo or c3BuyGo, true, c3BuyGo, na(bK2) ? na : bK2.l, na(bK2) ? na : bK2.lBar, c3BuyGo ? c3Tag : c2TagText(pspHit), na(bK1) ? na : bK1.l, na(bK1) ? na : bK1.lBar, c3BuyGo ? openBarAt(1) : bar_index, bullLevelFixed[1], bullIndexFixed[1], bullReclaimed[1], bullReclaimBar[1], c2BuyGo and smtBuyHit, smtNames(pairSmtBuy(pair1), pairSmtBuy(pair2)), bF1p, bF1b, bF0p, bF0b)
+buySetup := processSetup(buySetup, c2BuyGo or c3BuyGo, true, c3BuyGo, na(bK2) ? na : bK2.l, na(bK2) ? na : bK2.lBar, not (c2BuyGo or c3BuyGo) ? '' : c3BuyGo ? c3Tag : c2TagText(pspHit), na(bK1) ? na : bK1.l, na(bK1) ? na : bK1.lBar, c3BuyGo ? openBarAt(1) : bar_index, bullLevelFixed[1], bullIndexFixed[1], bullReclaimed[1], bullReclaimBar[1], c2BuyGo and smtBuyHit, c2BuyGo or c3BuyGo ? smtNames(pairSmtBuy(pair1), pairSmtBuy(pair2)) : '', bF1p, bF1b, bF0p, bF0b)
 if (c2BuyGo or c3BuyGo) and not na(buySetup) and not na(bK2)
     buySetup.c2P1 := bK2.pL
     buySetup.c2P2 := bK2.qL
@@ -2066,7 +2092,7 @@ HtfCandle sK1 = htfAt(sI1)
 HtfCandle sK2 = htfAt(sI1 - 1)
 [sF1p, sF1b] = flPick(sI1, false)
 [sF0p, sF0b] = flPick(sI1 + 1, false)
-sellSetup := processSetup(sellSetup, c2SellGo or c3SellGo, false, c3SellGo, na(sK2) ? na : sK2.h, na(sK2) ? na : sK2.hBar, c3SellGo ? c3Tag : c2TagText(pspHit), na(sK1) ? na : sK1.h, na(sK1) ? na : sK1.hBar, c3SellGo ? openBarAt(1) : bar_index, bearLevelFixed[1], bearIndexFixed[1], bearReclaimed[1], bearReclaimBar[1], c2SellGo and smtSellHit, smtNames(pairSmtSell(pair1), pairSmtSell(pair2)), sF1p, sF1b, sF0p, sF0b)
+sellSetup := processSetup(sellSetup, c2SellGo or c3SellGo, false, c3SellGo, na(sK2) ? na : sK2.h, na(sK2) ? na : sK2.hBar, not (c2SellGo or c3SellGo) ? '' : c3SellGo ? c3Tag : c2TagText(pspHit), na(sK1) ? na : sK1.h, na(sK1) ? na : sK1.hBar, c3SellGo ? openBarAt(1) : bar_index, bearLevelFixed[1], bearIndexFixed[1], bearReclaimed[1], bearReclaimBar[1], c2SellGo and smtSellHit, c2SellGo or c3SellGo ? smtNames(pairSmtSell(pair1), pairSmtSell(pair2)) : '', sF1p, sF1b, sF0p, sF0b)
 if (c2SellGo or c3SellGo) and not na(sellSetup) and not na(sK2)
     sellSetup.c2P1 := sK2.pH
     sellSetup.c2P2 := sK2.qH
@@ -2689,15 +2715,17 @@ var array<float> pBuf1H = array.new<float>()
 var array<float> pBuf1L = array.new<float>()
 var array<float> pBuf2H = array.new<float>()
 var array<float> pBuf2L = array.new<float>()
-pBuf1H.push(p1BarH)
-pBuf1L.push(p1BarL)
-pBuf2H.push(p2BarH)
-pBuf2L.push(p2BarL)
-if pBuf1H.size() > SMT_BUF
-    pBuf1H.shift()
-    pBuf1L.shift()
-    pBuf2H.shift()
-    pBuf2L.shift()
+// only filled when the chart SMT can use them (warm-up included, so the replay sees the same bars)
+if smtOnChart and (pair1Name != '' or pair2Name != '')
+    pBuf1H.push(p1BarH)
+    pBuf1L.push(p1BarL)
+    pBuf2H.push(p2BarH)
+    pBuf2L.push(p2BarL)
+    if pBuf1H.size() > SMT_BUF
+        pBuf1H.shift()
+        pBuf1L.shift()
+        pBuf2H.shift()
+        pBuf2L.shift()
 
 f_smt_draw(C2Setup s, int x1, float y1, int x2, float y2, bool isHigh, string txt) =>
     smtDrawOn(s, x1, y1, x2, y2, isHigh, txt)
