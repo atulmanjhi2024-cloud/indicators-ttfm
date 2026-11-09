@@ -29,7 +29,7 @@ grpCandles     = 'HTF Candles'
 htfCandleCount = input.int(4, 'HTF Candles', minval = 4, maxval = 40, group = grpCandles, tooltip = 'Candles in the model block (the HTF of the fractal), 4 to 40. At least 4: the model needs C1 to C4. HTF 1 / HTF 2 have their own count.')
 htfSize        = input.string('Normal', 'Size', options = ['Small', 'Normal', 'Large'], group = grpCandles, inline = 'size')
 hideHtf        = input.bool(false, 'Hide?', group = grpCandles, inline = 'size')
-hideSetups     = input.bool(false, 'Hide Setups?', group = grpCandles, inline = 'size', tooltip = 'Hide?: hides the HTF candles on the right.\n\nHide Setups?: no models on the chart (C2 / C3 / C4, CISD, T-Spots, protected swings, chart SMT, projections, formation liquidity, early CISD), and no model alerts. The HTF candles and their lines stay.')
+hideSetups     = input.bool(false, 'Hide Setups?', group = grpCandles, inline = 'size', tooltip = 'Hide?: hides the model HTF candles on the right (HTF 1 / HTF 2 stay if they are on).\n\nHide Setups?: no models on the chart (C2 / C3 / C4, CISD, T-Spots, protected swings, chart SMT, projections, formation liquidity, early CISD), and no model alerts. The HTF candles and their lines stay.')
 showX1         = input.bool(false, 'HTF 1', group = grpCandles, inline = 'xhtf1')
 x1Sel          = input.string('Auto', '', options = ['Auto', '15m', '30m', '1H', '90m', '4H', '6H', '7H', 'D', 'W', 'M'], group = grpCandles, inline = 'xhtf1', active = showX1)
 showX2         = input.bool(false, 'HTF 2', group = grpCandles, inline = 'xhtf2')
@@ -1476,12 +1476,14 @@ xSelTf(simple string s) =>
         'M'   => '1M'
         =>       ''
 
-string x1Auto = abNextHtf(autoTf)
+// HTF 1 / HTF 2 do not need the model: Auto counts from the model HTF, or from the chart when it has no fractal (7H chart: D / W)
+string xBase0 = validTf ? autoTf : timeframe.period
+string x1Auto = abNextHtf(xBase0)
 string x1Tf   = x1Sel == 'Auto' ? x1Auto : xSelTf(x1Sel)
 string x2Base = showX1 ? x1Tf : x1Auto
 string x2Tf   = x2Sel == 'Auto' ? abNextHtf(x2Base) : xSelTf(x2Sel)
-bool   x1On   = showX1 and validTf and not hideHtf and timeframe.in_seconds(x1Tf) > timeframe.in_seconds() and (x1Sel != 'Auto' or timeframe.in_seconds(x1Tf) > timeframe.in_seconds(autoTf))
-bool   x2On   = showX2 and validTf and not hideHtf and timeframe.in_seconds(x2Tf) > timeframe.in_seconds() and (x2Sel != 'Auto' or timeframe.in_seconds(x2Tf) > timeframe.in_seconds(x2Base))
+bool   x1On   = showX1 and timeframe.in_seconds(x1Tf) > timeframe.in_seconds() and (x1Sel != 'Auto' or timeframe.in_seconds(x1Tf) > timeframe.in_seconds(xBase0))
+bool   x2On   = showX2 and timeframe.in_seconds(x2Tf) > timeframe.in_seconds() and (x2Sel != 'Auto' or timeframe.in_seconds(x2Tf) > timeframe.in_seconds(x2Base))
 
 type XData
     array<float> o
@@ -2389,6 +2391,9 @@ xBlock(XData d, XData p, XData q, bool pInv, bool qInv, int left, string tf) =>
 if barstate.islast
     xUsed.fill(0)
 
+// where HTF 1 / HTF 2 start: right of the model block, or right of the chart when the model block is not drawn
+int xStart = bar_index + candleOffset
+
 if (barstate.islast or barstate.isrealtime) and validTf and htfCandles.size() > 0 and not hideHtf
     n = htfCandles.size()
     for i = n - 1 to 0
@@ -2499,20 +2504,23 @@ if (barstate.islast or barstate.isrealtime) and validTf and htfCandles.size() > 
 
     updateLiveSweeps(htfCandles)
 
-    // block title (HTF Label + Remaining Time), then [EXTRA HTF] HTF 1 / HTF 2 to the right
+    // block title (HTF Label + Remaining Time); HTF 1 / HTF 2 start to its right
     float mTop = na
     float mBot = na
     for i = 0 to n - 1
         mTop := na(mTop) ? htfCandles.get(i).h : math.max(mTop, htfCandles.get(i).h)
         mBot := na(mBot) ? htfCandles.get(i).l : math.min(mBot, htfCandles.get(i).l)
     xTitle(int(math.round((blockLeft + blockRight) / 2.0)), mTop, mBot, autoTf)
-    if x1On or x2On
-        // a block that would end past the 500-bar drawing limit right of the last bar is left out
-        int xLeft = blockRight + candleSpacing + 3
-        if x1On and xLeft + x1Count * candleSpacing + 12 <= bar_index + 495
-            xLeft := xBlock(x1D, x1P, x1Q, pair1InvOn, pair2InvOn, xLeft, x1Tf) + candleSpacing + 3
-        if x2On and xLeft + x2Count * candleSpacing + 12 <= bar_index + 495
-            xBlock(x2D, x2P, x2Q, pair1InvOn, pair2InvOn, xLeft, x2Tf)
+    xStart := blockRight + candleSpacing + 3
+
+// [EXTRA HTF] HTF 1 / HTF 2 (also with Hide? or on a chart without a fractal)
+if (barstate.islast or barstate.isrealtime) and (x1On or x2On)
+    // a block that would end past the 500-bar drawing limit right of the last bar is left out
+    int xLeft = xStart
+    if x1On and xLeft + x1Count * candleSpacing + 12 <= bar_index + 495
+        xLeft := xBlock(x1D, x1P, x1Q, pair1InvOn, pair2InvOn, xLeft, x1Tf) + candleSpacing + 3
+    if x2On and xLeft + x2Count * candleSpacing + 12 <= bar_index + 495
+        xBlock(x2D, x2P, x2Q, pair1InvOn, pair2InvOn, xLeft, x2Tf)
 
 // [EXTRA HTF] pooled drawings this redraw did not use
 if barstate.islast

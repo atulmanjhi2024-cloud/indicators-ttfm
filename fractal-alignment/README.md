@@ -63,7 +63,7 @@ On the chart:
 ## HTF candles
 
 - **Model HTF block** (1H on a 5m chart): 4–40 candles, size (Small / Normal / Large), offset. White / black candles, packed close together.
-- **HTF 1 / HTF 2** (off by default): extra blocks to the right. Auto = one and two steps above the model HTF (15m, 1H, 4H, D, W, M), or pick 15m, 30m, 1H, 90m, 4H, 6H, 7H, D, W, M; Auto never picks 90m, 6H or 7H. They show Previous EQ, sweeps, SMT and PSP; no model runs on them. Each has its own candle count (the box next to its timeframe, 1 to 10, default 4); HTF Candles is only for the model block (at least 4).
+- **HTF 1 / HTF 2** (off by default): extra blocks to the right. Auto = one and two steps above the model HTF (15m, 1H, 4H, D, W, M), or pick 15m, 30m, 1H, 90m, 4H, 6H, 7H, D, W, M; Auto never picks 90m, 6H or 7H. They show Previous EQ, sweeps, SMT and PSP; no model runs on them. They also show with Hide? on (Hide? only hides the model block) and on timeframes without a fractal (45m, 2H, 7H…), where Auto counts from the chart (7H: D / W). Each has its own candle count (the box next to its timeframe, 1 to 10, default 4); HTF Candles is only for the model block (at least 4).
 - **HTF Label + Remaining Time** above and below each block by default (`Top` / `Bottom` to keep one): the timeframe in bold, the time left in brackets under it, e.g. `1H` / `(12:40)`.
 - **HTF Open** and **Previous EQ** on the chart, on the HTF candles, or both. **L/H Lines** (off by default). **Time Labels** under each candle (on by default): open time, the day name on daily, the week's Monday date on weekly (`NOV 2`), the month on monthly.
 - **Live sweep:** when the forming candle takes the previous candle's extreme and trades back inside.
