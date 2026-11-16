@@ -375,6 +375,7 @@ type SetupRecord
 type EarlyCisdRecord
     line  ln
     int   barIndex
+    float extreme
 
 var array<HtfCandle>        htfCandles           = array.new<HtfCandle>()
 // the last candle dropped off the block (a C3 model's candle before C1)
@@ -879,15 +880,23 @@ htfCloseTime(string tf) =>
     sec < 86400 ? time(tf) + sec * 1000 : time_close(tf)
 
 
-drawEarlyCisd(bool isBull, float level, int idx, int confirmBar) =>
+drawEarlyCisd(bool isBull, float level, int idx, int confirmBar, float extreme) =>
     array<EarlyCisdRecord> target = isBull ? bullEarlyCisdRecords : bearEarlyCisdRecords
     color clr = isBull ? cisdBullColor : cisdBearColor
     if showEarlyCisd and calcOn and not hideSetups
         // line only, ending one candle after the candle that closed through the level
         ln = line.new(idx, level, confirmBar + 1, level, color = clr, style = lineStyleFromStr(earlyCisdStyle), width = 1)
-        target.push(EarlyCisdRecord.new(ln, confirmBar))
+        target.push(EarlyCisdRecord.new(ln, confirmBar, extreme))
     if showAlerts and earlyCisdAlerts and calcOn and not hideSetups
         alert((isBull ? 'Bullish' : 'Bearish') + ' Potential Candle 2 on ' + syminfo.ticker + ', ' + modelText(), alert.freq_once_per_bar_close)
+
+invalidateEarlyCisd(array<EarlyCisdRecord> recs, bool isBull) =>
+    if recs.size() > 0
+        for i = recs.size() - 1 to 0
+            rec = recs.get(i)
+            if not na(rec.extreme) and (isBull ? low < rec.extreme : high > rec.extreme)
+                line.delete(rec.ln)
+                recs.remove(i)
 
 pruneEarlyCisd(array<EarlyCisdRecord> recs, int thresholdBar) =>
     if not na(thresholdBar)
@@ -898,6 +907,21 @@ pruneEarlyCisd(array<EarlyCisdRecord> recs, int thresholdBar) =>
 consumeLastEarlyCisd(array<EarlyCisdRecord> recs, int reclaimBar) =>
     if recs.size() > 0 and not na(reclaimBar) and recs.last().barIndex == reclaimBar
         line.delete(recs.pop().ln)
+
+// Lowest and highest candle-body edges across the bar range [idxA, idxB]
+cisdBodyBounds(int idxA, int idxB) =>
+    float bLo = na
+    float bHi = na
+    if not na(idxA) and not na(idxB)
+        int o0 = bar_index - math.min(idxA, idxB)
+        int o1 = bar_index - math.max(idxA, idxB)
+        if o1 >= 0 and o1 <= 1499
+            for k = o1 to math.min(o0, 1499)
+                float cHi = math.max(open[k], close[k])
+                float cLo = math.min(open[k], close[k])
+                bHi := na(bHi) ? cHi : math.max(bHi, cHi)
+                bLo := na(bLo) ? cLo : math.min(bLo, cLo)
+    [bLo, bHi]
 
 parseFloats(string src) =>
     var out = array.new<float>()
@@ -917,9 +941,10 @@ createStdDevProjections(C2Setup s) =>
             level0 = s.cisdLevel
             level1 = s.extreme
             if stdDevCalc != 'Wick'
-                int j = bar_index - s.c2BarIndex
-                if not na(j) and j >= 0 and j <= 1499
-                    level1 := s.isBull ? math.min(open[j], close[j]) : math.max(open[j], close[j])
+                [bLo, bHi] = cisdBodyBounds(s.cisdIndex, s.c2BarIndex)
+                float bExt = s.isBull ? bLo : bHi
+                if not na(bExt)
+                    level1 := bExt
             int   leftBar    = s.c2BarIndex
             float priceRange = s.isBull ? level0 - level1 : level1 - level0
             lbs = array.new<label>()
@@ -1135,8 +1160,8 @@ icStep(C2Setup s, int m, bool live) =>
                             c4Ok := swPx > s.c3Lo and swPx < s.c3Hi
                 if c4Ok and (icInFvg(s, swPx, swIdx) or icSweepsSwing(s, swPx, swIdx))
                     registerIcCisd(s, swPx, swIdx, m)
-                    if live and showAlerts and protAlerts
-                        alert((s.isBull ? 'Bullish' : 'Bearish') + ' Protected Swing on ' + syminfo.ticker + ', ' + modelText(), alert.freq_once_per_bar)
+                    if live and barstate.isconfirmed and showAlerts and protAlerts
+                        alert((s.isBull ? 'Bullish' : 'Bearish') + ' Protected Swing on ' + syminfo.ticker + ', ' + modelText(), alert.freq_once_per_bar_close)
                 icClearPending(s)
     else if oppBar
         s.icPending      := true
@@ -1150,9 +1175,9 @@ icStep(C2Setup s, int m, bool live) =>
 // before the setup object existed). Covers cisdEndIndex + 1 .. lastBar.
 method replayIc(C2Setup s, int lastBar) =>
     if showIcCisd and s.cisdConfirmed and not na(s.cisdEndIndex)
-        int firstBar = math.max(s.cisdEndIndex + 1, bar_index - icBackfillMaxBars)
-        if lastBar >= firstBar
-            for m = firstBar to lastBar
+        int icFirstBar = math.max(s.cisdEndIndex + 1, bar_index - icBackfillMaxBars)
+        if lastBar >= icFirstBar
+            for m = icFirstBar to lastBar
                 icMarkTaken(s, m)
                 icStep(s, m, false)
     s
@@ -1224,8 +1249,8 @@ registerRecord(C2Setup s) =>
     pruneEarlyCisd(bullEarlyCisdRecords, earliestVisibleBar)
     pruneEarlyCisd(bearEarlyCisdRecords, earliestVisibleBar)
 
-// The chart must be the fractal's entry timeframe or lower, and below the model HTF
-validTf = (modelType == 'Automatic' ? autoHTF() != '' : timeframe.in_seconds() <= timeframe.in_seconds(ltfCode())) and timeframe.in_seconds(autoTf) > timeframe.in_seconds()
+// The chart must match the fractal's entry timeframe, and be below the model HTF
+validTf = (modelType == 'Automatic' ? autoHTF() != '' : timeframe.in_seconds() == timeframe.in_seconds(ltfCode())) and timeframe.in_seconds(autoTf) > timeframe.in_seconds()
 
 // [AUTO BIAS] the fractal model 1 / 2 steps above (on 5m-1H: Auto Bias 1 = 15m-4H, Auto Bias 2 = 1H-1D;
 // a bearish 1H-1D model -> only bearish setups that day).
@@ -1568,9 +1593,9 @@ if x2On
 
 // Chart symbol swept C1 (that is what makes it a C2). SMT = a pair did NOT sweep its own C1.
 pairSmtBuy(PairBars p) =>
-    not na(p) and not na(p.l1) and not na(p.l2) and p.l1 >= p.l2
+    not na(p) and not na(p.l1) and not na(p.l2) and p.l1 > p.l2
 pairSmtSell(PairBars p) =>
-    not na(p) and not na(p.h1) and not na(p.h2) and p.h1 <= p.h2
+    not na(p) and not na(p.h1) and not na(p.h2) and p.h1 < p.h2
 smtBuyHit  = show_smt and (pairSmtBuy(pair1) or pairSmtBuy(pair2))
 smtSellHit = show_smt and (pairSmtSell(pair1) or pairSmtSell(pair2))
 
@@ -1730,14 +1755,7 @@ newSetup(bool isBull, bool c3Model, float extreme, int extremeBar, string tag, f
             top := math.max(open, mid)
             bot := math.min(open, mid)
         else if not na(cisdLevel) and not na(cisdIndex) and not na(extremeBar)
-            int   o0   = bar_index - math.min(cisdIndex, extremeBar)
-            int   o1   = bar_index - math.max(cisdIndex, extremeBar)
-            float bHi  = na
-            float bLo  = na
-            if o1 >= 0 and o0 <= 1499
-                for k = o1 to o0
-                    bHi := na(bHi) ? math.max(open[k], close[k]) : math.max(bHi, math.max(open[k], close[k]))
-                    bLo := na(bLo) ? math.min(open[k], close[k]) : math.min(bLo, math.min(open[k], close[k]))
+            [bLo, bHi] = cisdBodyBounds(cisdIndex, extremeBar)
             float c50  = na(bHi) ? cisdLevel : (bHi + bLo) / 2
             float oTop = math.min(top, math.max(cisdLevel, c50))
             float oBot = math.max(bot, math.min(cisdLevel, c50))
@@ -1856,6 +1874,9 @@ method extendAndCheck(C2Setup s) =>
             s.csLn := na
             s.csLb := na
             s.deleteStdDev()
+            icFreeze(s)
+            icClearPending(s)
+            s.icStopped := true
             s.dead  := true
             s.phase := 0
     s
@@ -1883,7 +1904,7 @@ method checkC4Invalid(C2Setup s) =>
     s
 
 method checkCisdConfirm(C2Setup s) =>
-    if not na(s) and not s.dead and not s.cisdConfirmed and s.phase != 0 and not na(s.cisdLevel) and not na(s.cisdIndex)
+    if barstate.isconfirmed and not na(s) and not s.dead and not s.cisdConfirmed and s.phase != 0 and not na(s.cisdLevel) and not na(s.cisdIndex)
         confirmed = s.isBull ? close > s.cisdLevel : close < s.cisdLevel
         if confirmed
             s.reveal(true)
@@ -1938,7 +1959,7 @@ var int   bullIndexFixed = na
 var float bearLevelFixed = na
 var int   bearIndexFixed = na
 
-if low == l0 and low < l1
+if barstate.isconfirmed and low == l0 and low < l1
     if (dw[0] or eq[0]) and (up[1] or eq[1]) and not (eq[0] and eq[1])
         bullLevelFixed := open
         bullIndexFixed := bar_index
@@ -1957,7 +1978,7 @@ if low == l0 and low < l1
                 // the level stays at the run's open even when the extreme candle opened beyond it
                 break
 
-if high == h0 and high > h1
+if barstate.isconfirmed and high == h0 and high > h1
     if (up[0] or eq[0]) and (dw[1] or eq[1]) and not (eq[0] and eq[1])
         bearLevelFixed := open
         bearIndexFixed := bar_index
@@ -1983,29 +2004,32 @@ var int  bearReclaimBar = na
 bullEarlyCisdFiredThisBar = false
 bearEarlyCisdFiredThisBar = false
 
+invalidateEarlyCisd(bullEarlyCisdRecords, true)
+invalidateEarlyCisd(bearEarlyCisdRecords, false)
+
 bullPeriodSweep = l0 < l1
 bearPeriodSweep = h0 > h1
 
 newBullLevel = not na(bullIndexFixed) and (na(bullIndexFixed[1]) or bullIndexFixed != bullIndexFixed[1])
-if newBullLevel
+if newBullLevel or (not periodChanged and l0 < l0[1])
     bullReclaimed  := false
     bullReclaimBar := na
-if not na(bullLevelFixed) and not bullReclaimed and close > bullLevelFixed
+if barstate.isconfirmed and not na(bullLevelFixed) and not bullReclaimed and close > bullLevelFixed
     bullReclaimed  := true
     bullReclaimBar := bar_index
     if showC2 and bullPeriodSweep and validTf and inTimeFilter and allowBuy and biasNow != 'Bearish'
-        drawEarlyCisd(true, bullLevelFixed, bullIndexFixed, bar_index)
+        drawEarlyCisd(true, bullLevelFixed, bullIndexFixed, bar_index, l0)
         bullEarlyCisdFiredThisBar := true
 
 newBearLevel = not na(bearIndexFixed) and (na(bearIndexFixed[1]) or bearIndexFixed != bearIndexFixed[1])
-if newBearLevel
+if newBearLevel or (not periodChanged and h0 > h0[1])
     bearReclaimed  := false
     bearReclaimBar := na
-if not na(bearLevelFixed) and not bearReclaimed and close < bearLevelFixed
+if barstate.isconfirmed and not na(bearLevelFixed) and not bearReclaimed and close < bearLevelFixed
     bearReclaimed  := true
     bearReclaimBar := bar_index
     if showC2 and bearPeriodSweep and validTf and inTimeFilter and allowSell and biasNow != 'Bullish'
-        drawEarlyCisd(false, bearLevelFixed, bearIndexFixed, bar_index)
+        drawEarlyCisd(false, bearLevelFixed, bearIndexFixed, bar_index, h0)
         bearEarlyCisdFiredThisBar := true
 
 
@@ -2170,10 +2194,10 @@ if (c2SellGo or c3SellGo) and bearReclaimed[1]
 
 // Separate alert conditions: in TradingView's "Add Alert" dialog pick one of these
 // instead of "Any alert() function call" to set the CISD alerts up on their own (C2/C3 Closure is above).
-alertcondition(bullEarlyCisdFiredThisBar and barstate.isconfirmed and showAlerts and earlyCisdAlerts and not hideSetups, title = 'Bullish Early CISD', message = 'Bullish Early CISD on {{ticker}} ({{interval}})')
-alertcondition(bearEarlyCisdFiredThisBar and barstate.isconfirmed and showAlerts and earlyCisdAlerts and not hideSetups, title = 'Bearish Early CISD', message = 'Bearish Early CISD on {{ticker}} ({{interval}})')
-alertcondition(cisdBullFiredThisBar and showAlerts and modelAlerts and not hideSetups, title = 'Bullish CISD Confirmed', message = 'Bullish CISD Confirmed on {{ticker}} ({{interval}})')
-alertcondition(cisdBearFiredThisBar and showAlerts and modelAlerts and not hideSetups, title = 'Bearish CISD Confirmed', message = 'Bearish CISD Confirmed on {{ticker}} ({{interval}})')
+alertcondition(bullEarlyCisdFiredThisBar and barstate.isconfirmed and showAlerts and earlyCisdAlerts and not hideSetups and calcOn, title = 'Bullish Early CISD', message = 'Bullish Early CISD on {{ticker}} ({{interval}})')
+alertcondition(bearEarlyCisdFiredThisBar and barstate.isconfirmed and showAlerts and earlyCisdAlerts and not hideSetups and calcOn, title = 'Bearish Early CISD', message = 'Bearish Early CISD on {{ticker}} ({{interval}})')
+alertcondition(cisdBullFiredThisBar and showAlerts and modelAlerts and not hideSetups and calcOn, title = 'Bullish CISD Confirmed', message = 'Bullish CISD Confirmed on {{ticker}} ({{interval}})')
+alertcondition(cisdBearFiredThisBar and showAlerts and modelAlerts and not hideSetups and calcOn, title = 'Bearish CISD Confirmed', message = 'Bearish CISD Confirmed on {{ticker}} ({{interval}})')
 
 if showVlines and periodChanged and calcOn
     vLines.unshift(line.new(bar_index, low - ta.tr, bar_index, high + ta.tr, xloc.bar_index, extend.both, lineColor, lineStyleFromStr(lineStyle), lineWidth))
@@ -2719,7 +2743,8 @@ var table warnTbl = na
 if barstate.islast
     string msg = ''
     if not validTf
-        msg := 'Fractal ' + modelType + ' does not work on the ' + tfLabel(curTfCode()) + ' chart.'
+        string mLbl = modelType == 'Custom' ? modelText() : modelType
+        msg := 'Fractal ' + mLbl + ' does not work on the ' + tfLabel(curTfCode()) + ' chart.'
     if (show_smt or showPsp) and pair1Name == '' and pair2Name == ''
         msg := (msg == '' ? '' : msg + '\n') + 'No correlated pair for ' + syminfo.ticker + '. Set one in Asset Correlation > Custom.'
     if (show_smt or showPsp) and pair1Name != '' and not pair1Seen
