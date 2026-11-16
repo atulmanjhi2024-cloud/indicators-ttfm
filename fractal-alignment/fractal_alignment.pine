@@ -6,7 +6,7 @@ indicator("Fractal Alignment", shorttitle = "Fractal Alignment", overlay = true,
 // TradingView stores settings by position (in_0, in_1 ...): adding or removing an input shifts every later one.
 
 grpAlerts       = 'Alerts Settings'
-showAlerts      = input.bool(true, 'Alerts?', group = grpAlerts, tooltip = "Master switch for every alert of this indicator.\n\nTo create one: click the three dots next to the indicator name (or right-click it on the chart) > Add alert > Create. Condition: Any alert() function call. Alerts keep the settings they were created with; after changing these, create the alert again.")
+showAlerts      = input.bool(true, 'Alerts?', group = grpAlerts, tooltip = "Master switch for every alert of this indicator.\n\nTo create one: click the three dots next to the indicator name (or right-click it on the chart) > Add alert > Create. Condition: Any alert() function call. A CISD, Early CISD or SMT alert comes when the chart candle closes through the level, so a wick that comes back does not alert. Alerts keep the settings they were created with; after changing these, create the alert again.")
 modelAlerts     = input.bool(true, 'Model Candles?', group = grpAlerts, tooltip = 'A full model: a C2 or C3 closure with its CISD, or its continuation. The alert says Candle 2, Candle 3 or Candle 4.')
 earlyCisdAlerts = input.bool(false, 'Early CISD?', group = grpAlerts, tooltip = 'A CISD before the HTF candle has closed. The alert says Potential Candle 2.')
 smtAlerts       = input.bool(true, 'SMT Divergence?', group = grpAlerts, tooltip = 'A correlated pair disagrees while a model runs: after C2 closes, the pair goes past its own C2 extreme while price does not.')
@@ -887,7 +887,7 @@ drawEarlyCisd(bool isBull, float level, int idx, int confirmBar) =>
         ln = line.new(idx, level, confirmBar + 1, level, color = clr, style = lineStyleFromStr(earlyCisdStyle), width = 1)
         target.push(EarlyCisdRecord.new(ln, confirmBar))
     if showAlerts and earlyCisdAlerts and calcOn and not hideSetups
-        alert((isBull ? 'Bullish' : 'Bearish') + ' Potential Candle 2 on ' + syminfo.ticker + ', ' + modelText(), alert.freq_once_per_bar)
+        alert((isBull ? 'Bullish' : 'Bearish') + ' Potential Candle 2 on ' + syminfo.ticker + ', ' + modelText(), alert.freq_once_per_bar_close)
 
 pruneEarlyCisd(array<EarlyCisdRecord> recs, int thresholdBar) =>
     if not na(thresholdBar)
@@ -1633,7 +1633,7 @@ smtDrawOn(C2Setup s, int x1, float y1, int x2, float y2, bool isHigh, string txt
         s.smtLbls.push(label.new(int(math.round((x1 + x2) / 2.0)), (y1 + y2) / 2, txt, xloc = xloc.bar_index, yloc = yloc.price, style = isHigh ? label.style_label_down : label.style_label_up, color = na, textcolor = smtColorFor(isHigh), size = textSize(smtLblSize), text_font_family = font.family_default))
 
 // [REVEAL] A model is only drawn once its LTF CISD confirms. Everything that already happened is drawn then.
-method reveal(C2Setup s) =>
+method reveal(C2Setup s, bool onClose = false) =>
     if not s.revealed
         s.revealed := true
         if showLabels and validTf
@@ -1676,7 +1676,12 @@ method reveal(C2Setup s) =>
                     s.c4Lbl := na
         registerRecord(s)
         if showAlerts and modelAlerts
-            alert((s.isBull ? 'Bullish ' : 'Bearish ') + (s.c3Model ? 'Candle 3' : 'Candle 2') + ' (' + s.tag + ') on ' + syminfo.ticker + ', ' + modelText(), alert.freq_once_per_bar)
+            string msg = (s.isBull ? 'Bullish ' : 'Bearish ') + (s.c3Model ? 'Candle 3' : 'Candle 2') + ' (' + s.tag + ') on ' + syminfo.ticker + ', ' + modelText()
+            // a CISD inside the bar alerts on the bar's close; a model that closes already confirmed alerts at once
+            if onClose
+                alert(msg, alert.freq_once_per_bar_close)
+            else
+                alert(msg, alert.freq_once_per_bar)
     s
 
 // A new model. C2 model: created when C3 opens. C3 model (C3 closure): created when C4 opens, so it
@@ -1881,7 +1886,7 @@ method checkCisdConfirm(C2Setup s) =>
     if not na(s) and not s.dead and not s.cisdConfirmed and s.phase != 0 and not na(s.cisdLevel) and not na(s.cisdIndex)
         confirmed = s.isBull ? close > s.cisdLevel : close < s.cisdLevel
         if confirmed
-            s.reveal()
+            s.reveal(true)
             confirmCisd(s, bar_index)
     s
 
@@ -2147,12 +2152,14 @@ icMarkTakenAll(htfOpenT)
 buySetup  := buySetup.updateIc()
 sellSetup := sellSetup.updateIc()
 
+// a CISD inside the bar only counts on the bar's close (a wick through the level that comes back would
+// alert on every bar otherwise)
 if not na(buySetup) and buySetup.justConfirmed
-    cisdBullFiredThisBar := true
+    cisdBullFiredThisBar := barstate.isconfirmed
     buySetup.justConfirmed := false
 
 if not na(sellSetup) and sellSetup.justConfirmed
-    cisdBearFiredThisBar := true
+    cisdBearFiredThisBar := barstate.isconfirmed
     sellSetup.justConfirmed := false
 
 // the CISD already confirmed inside C2: the model shows up confirmed at the closure (no C2/C3 Closure alert then)
@@ -2163,8 +2170,8 @@ if (c2SellGo or c3SellGo) and bearReclaimed[1]
 
 // Separate alert conditions: in TradingView's "Add Alert" dialog pick one of these
 // instead of "Any alert() function call" to set the CISD alerts up on their own (C2/C3 Closure is above).
-alertcondition(bullEarlyCisdFiredThisBar and showAlerts and earlyCisdAlerts and not hideSetups, title = 'Bullish Early CISD', message = 'Bullish Early CISD on {{ticker}} ({{interval}})')
-alertcondition(bearEarlyCisdFiredThisBar and showAlerts and earlyCisdAlerts and not hideSetups, title = 'Bearish Early CISD', message = 'Bearish Early CISD on {{ticker}} ({{interval}})')
+alertcondition(bullEarlyCisdFiredThisBar and barstate.isconfirmed and showAlerts and earlyCisdAlerts and not hideSetups, title = 'Bullish Early CISD', message = 'Bullish Early CISD on {{ticker}} ({{interval}})')
+alertcondition(bearEarlyCisdFiredThisBar and barstate.isconfirmed and showAlerts and earlyCisdAlerts and not hideSetups, title = 'Bearish Early CISD', message = 'Bearish Early CISD on {{ticker}} ({{interval}})')
 alertcondition(cisdBullFiredThisBar and showAlerts and modelAlerts and not hideSetups, title = 'Bullish CISD Confirmed', message = 'Bullish CISD Confirmed on {{ticker}} ({{interval}})')
 alertcondition(cisdBearFiredThisBar and showAlerts and modelAlerts and not hideSetups, title = 'Bearish CISD Confirmed', message = 'Bearish CISD Confirmed on {{ticker}} ({{interval}})')
 
@@ -2762,7 +2769,7 @@ if smtOnChart and (pair1Name != '' or pair2Name != '')
 f_smt_draw(C2Setup s, int x1, float y1, int x2, float y2, bool isHigh, string txt) =>
     smtDrawOn(s, x1, y1, x2, y2, isHigh, txt)
     if showAlerts and smtAlerts
-        alert((isHigh ? 'Bearish' : 'Bullish') + ' SMT Divergence on ' + syminfo.ticker + ', ' + modelText(), alert.freq_once_per_bar)
+        alert((isHigh ? 'Bearish' : 'Bullish') + ' SMT Divergence on ' + syminfo.ticker + ', ' + modelText(), alert.freq_once_per_bar_close)
 
 // beyond = further in the setup's direction of the extreme (bearish: higher, bullish: lower)
 f_beyond(bool isHigh, float a, float b) =>
