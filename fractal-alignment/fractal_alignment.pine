@@ -2356,6 +2356,20 @@ xTitle(int x, float top, float bot, string tf) =>
             if nm != ''
                 xLabel(x, bot, pre + (both ? ' \n' : '') + nm, label.style_label_up, htfNameColor, true, true)
 
+// HTF PSP label. Under a candle the time stamp comes first. When the candle makes the block's high (low) and the block
+// title sits on that side, the label moves past the title (anchored at the block's high / low) so the time stays readable.
+// The title name is one size larger, so it takes two of these lines.
+pspPlace(bool below, float y, float top, float bot) =>
+    bool  titleSide = below ? htfNamePos != 'Top' : htfNamePos != 'Bottom'
+    float tol       = (top - bot) * 0.06
+    bool  atTitle   = titleSide and (showHtfName or showHtfTimer) and (below ? y <= bot + tol : y >= top - tol)
+    int   k         = (below and showHtfStamps ? 1 : 0) + (atTitle ? (showHtfTimer ? 1 : 0) + (showHtfName ? 2 : 0) : 0)
+    string txt = 'PSP'
+    if k > 0
+        for j = 1 to k
+            txt := below ? ' \n' + txt : txt + '\n '
+    [atTitle ? (below ? bot : top) : y, txt]
+
 // A pair's candle with the same open time (else the same position), flipped for an inverse pair
 xPair(XData p, bool inv, int i, int t) =>
     float h = na
@@ -2453,7 +2467,8 @@ xBlock(XData d, XData p, XData q, bool pInv, bool qInv, int left, string tf) =>
         for j = 0 to n - 1
             if pspLo.get(j) or pspHi.get(j)
                 bool below = pspLo.get(j)
-                xLabel(mids.get(j), below ? d.l.get(j) : d.h.get(j), below and showHtfStamps ? ' \nPSP' : 'PSP', below ? label.style_label_up : label.style_label_down, c2c3c4Color)
+                [py, ptxt] = pspPlace(below, below ? d.l.get(j) : d.h.get(j), top, bot)
+                xLabel(mids.get(j), py, ptxt, below ? label.style_label_up : label.style_label_down, c2c3c4Color)
 
         // SMT between consecutive candles, per pair; hidden once a newer candle trades beyond it
         if smtOnHtf
@@ -2564,6 +2579,13 @@ if (barstate.islast or barstate.isrealtime) and validTf and htfCandles.size() > 
         cur.smtHLine := smtHtfSeg(cur.smtHLine, bear1 or bear2, x1, yH, cur.midX, cur.h, true)
         cur.smtLLine := smtHtfSeg(cur.smtLLine, bull1 or bull2, x1, yL, cur.midX, cur.l, false)
 
+    // block high / low (title and PSP placement)
+    float mTop = na
+    float mBot = na
+    for i = 0 to n - 1
+        mTop := na(mTop) ? htfCandles.get(i).h : math.max(mTop, htfCandles.get(i).h)
+        mBot := na(mBot) ? htfCandles.get(i).l : math.min(mBot, htfCandles.get(i).l)
+
     // [PSP] on the C1 / C2 HTF candles of setups: the candle closes a different color than a pair's same candle
     for i = 0 to n - 1
         HtfCandle c = htfCandles.get(i)
@@ -2585,9 +2607,7 @@ if (barstate.islast or barstate.isrealtime) and validTf and htfCandles.size() > 
                         pspBear := true
         if pspBull or pspBear
             bool  below = pspBull
-            float y     = below ? c.l : c.h
-            // below the candle the time stamp sits first, so PSP goes on the next line
-            string txt  = below and showHtfStamps ? ' \nPSP' : 'PSP'
+            [y, txt]    = pspPlace(below, below ? c.l : c.h, mTop, mBot)
             string tip  = 'PSP: ' + (pspD1 ? statusSym(pair1Name) : '') + (pspD1 and pspD2 ? ' + ' : '') + (pspD2 ? statusSym(pair2Name) : '')
             if na(c.pspLbl)
                 c.pspLbl := label.new(c.midX, y, txt, xloc = xloc.bar_index, yloc = yloc.price, style = below ? label.style_label_up : label.style_label_down, color = na, textcolor = c2c3c4Color, size = smallerSize(labelSize), text_font_family = font.family_default, tooltip = tip)
@@ -2604,11 +2624,6 @@ if (barstate.islast or barstate.isrealtime) and validTf and htfCandles.size() > 
     updateLiveSweeps(htfCandles)
 
     // block title (HTF Label + Remaining Time); HTF 1 / HTF 2 start to its right
-    float mTop = na
-    float mBot = na
-    for i = 0 to n - 1
-        mTop := na(mTop) ? htfCandles.get(i).h : math.max(mTop, htfCandles.get(i).h)
-        mBot := na(mBot) ? htfCandles.get(i).l : math.min(mBot, htfCandles.get(i).l)
     xTitle(int(math.round((blockLeft + blockRight) / 2.0)), mTop, mBot, autoTf)
     xStart := blockRight + candleSpacing + 3
 
